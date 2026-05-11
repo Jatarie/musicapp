@@ -64,7 +64,6 @@ const els = {
   rangeSelect: document.querySelector("#rangeSelect"),
   lengthSelect: document.querySelector("#lengthSelect"),
   accidentalsSelect: document.querySelector("#accidentalsSelect"),
-  octaveMatch: document.querySelector("#listenChords"),
   newRound: document.querySelector("#newRound"),
   demoMode: document.querySelector("#demoMode"),
   scoreValue: document.querySelector("#scoreValue"),
@@ -236,11 +235,7 @@ function handlePlayedNote(midi) {
   const target = state.notes[state.current];
   if (!target) return;
 
-  const exact = midi === target.midi;
-  const samePitch = pitchClass(midi) === pitchClass(target.midi);
-  const correct = els.octaveMatch.checked ? exact : samePitch;
-
-  if (correct) {
+  if (midi === target.midi) {
     state.correct += 1;
     state.streak += 1;
     state.current += 1;

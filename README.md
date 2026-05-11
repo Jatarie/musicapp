@@ -36,5 +36,5 @@ GitHub Pages serves over HTTPS, so Web MIDI can request device access there in s
 - Configurable round length
 - Optional accidentals
 - MIDI input selection
-- Optional octave-exact checking
+- Octave-exact note checking
 - Computer-key demo mode for testing without a keyboard.
