@@ -267,7 +267,7 @@ function handlePlayedNote(midi) {
 
   if (state.current >= state.notes.length) {
     setFeedback("Round complete", "good");
-    window.setTimeout(makeRound, 900);
+    makeRound();
   }
 
   updateLabels();
