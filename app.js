@@ -110,7 +110,8 @@ const state = {
   correct: 0,
   missed: 0,
   streak: 0,
-  demoMode: false
+  demoMode: false,
+  midiConnectPending: false
 };
 
 const els = {
@@ -387,11 +388,18 @@ function onMidiMessage(event) {
   }
 }
 
+function hasMidiConnection() {
+  return state.midiInput && state.midiInput.state !== "disconnected";
+}
+
 function refreshMidiInputs() {
-  const inputs = state.midiAccess ? Array.from(state.midiAccess.inputs.values()) : [];
+  const inputs = state.midiAccess
+    ? Array.from(state.midiAccess.inputs.values()).filter((input) => input.state !== "disconnected")
+    : [];
   els.midiInputs.innerHTML = "";
 
   if (!inputs.length) {
+    state.midiInput = null;
     const option = document.createElement("option");
     option.value = "";
     option.textContent = "No MIDI inputs";
@@ -408,11 +416,15 @@ function refreshMidiInputs() {
 }
 
 async function connectMidi() {
+  if (hasMidiConnection() || state.midiConnectPending) return;
+
   if (!navigator.requestMIDIAccess) {
     setFeedback("Web MIDI is not available in this browser", "bad");
     els.midiStatus.textContent = "Unsupported browser";
     return;
   }
+
+  state.midiConnectPending = true;
 
   try {
     state.midiAccess = await navigator.requestMIDIAccess();
@@ -422,6 +434,14 @@ async function connectMidi() {
   } catch (error) {
     setFeedback("MIDI permission was not granted", "bad");
     els.midiStatus.textContent = "MIDI blocked";
+  } finally {
+    state.midiConnectPending = false;
+  }
+}
+
+function autoConnectMidi() {
+  if (!hasMidiConnection()) {
+    connectMidi();
   }
 }
 
@@ -433,9 +453,11 @@ function selectMidiInput() {
   }
 
   const inputId = els.midiInputs.value;
-  const input = inputId
-    ? state.midiAccess.inputs.get(inputId)
-    : Array.from(state.midiAccess.inputs.values())[0];
+  const inputs = Array.from(state.midiAccess.inputs.values()).filter((input) => input.state !== "disconnected");
+  const selectedInput = inputId ? state.midiAccess.inputs.get(inputId) : null;
+  const input = selectedInput && selectedInput.state !== "disconnected"
+    ? selectedInput
+    : inputs[0];
 
   state.midiInput = input || null;
 
@@ -483,5 +505,6 @@ els.keySelect.addEventListener("change", makeRound);
 els.accidentalsSelect.addEventListener("change", makeRound);
 els.distanceSelect.addEventListener("change", makeRound);
 document.addEventListener("keydown", handleComputerKey);
+window.setInterval(autoConnectMidi, 5000);
 
 makeRound();
