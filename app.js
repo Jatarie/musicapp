@@ -155,13 +155,14 @@ function makeRound() {
 }
 
 function drawStaff(svg, y, clef, label) {
+  const clefSymbol = clef === "treble" ? "&#119070;" : "&#119074;";
+  const clefY = clef === "treble" ? y + 55 : y + 40;
   const lines = Array.from({ length: 5 }, (_, index) => {
     const lineY = y + index * 14;
     return `<line class="staff-line" x1="70" y1="${lineY}" x2="930" y2="${lineY}"></line>`;
   }).join("");
   return `
-    <text class="clef" x="88" y="${y + 50}">${clef}</text>
-    <text class="note-label" x="26" y="${y + 34}">${label}</text>
+    <text class="clef clef-${clef}" x="88" y="${clefY}">${clefSymbol}</text>
     ${lines}
   `;
 }
@@ -189,10 +190,10 @@ function drawScore() {
   const noteGap = 760 / Math.max(state.notes.length, 1);
 
   const staves = mode === "bass"
-    ? drawStaff(null, 142, "F", "Bass")
+    ? drawStaff(null, 142, "bass", "Bass")
     : mode === "treble"
-      ? drawStaff(null, 142, "G", "Treble")
-      : `${drawStaff(null, 142, "G", "Treble")}${drawStaff(null, 282, "F", "Bass")}`;
+      ? drawStaff(null, 142, "treble", "Treble")
+      : `${drawStaff(null, 142, "treble", "Treble")}${drawStaff(null, 282, "bass", "Bass")}`;
 
   const notes = state.notes.map((note, index) => {
     const x = 155 + index * noteGap;
