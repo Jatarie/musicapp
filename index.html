@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sightline MIDI Reader</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Application controls">
+        <div>
+          <p class="eyebrow">Sight-reading trainer</p>
+          <h1>Sightline MIDI Reader</h1>
+        </div>
+        <div class="midi-panel">
+          <div class="status-pill" id="midiStatus">MIDI disconnected</div>
+          <select id="midiInputs" aria-label="MIDI input devices">
+            <option value="">No MIDI inputs</option>
+          </select>
+          <button id="connectMidi" type="button">Connect MIDI</button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="controls" aria-label="Exercise settings">
+          <div class="control-group">
+            <label for="rangeSelect">Range</label>
+            <select id="rangeSelect">
+              <option value="treble">Treble staff</option>
+              <option value="bass">Bass staff</option>
+              <option value="grand">Grand staff</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="lengthSelect">Notes per round</label>
+            <select id="lengthSelect">
+              <option value="4">4</option>
+              <option value="8" selected>8</option>
+              <option value="12">12</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="accidentalsSelect">Accidentals</label>
+            <select id="accidentalsSelect">
+              <option value="none">Natural notes</option>
+              <option value="some">Add sharps/flats</option>
+            </select>
+          </div>
+
+          <div class="toggle-row">
+            <input id="listenChords" type="checkbox">
+            <label for="listenChords">Require octave match</label>
+          </div>
+
+          <div class="actions">
+            <button id="newRound" type="button">New round</button>
+            <button id="demoMode" type="button">Use computer keys</button>
+          </div>
+
+          <div class="stats" aria-label="Practice statistics">
+            <div>
+              <span id="scoreValue">0</span>
+              <small>Correct</small>
+            </div>
+            <div>
+              <span id="missValue">0</span>
+              <small>Missed</small>
+            </div>
+            <div>
+              <span id="streakValue">0</span>
+              <small>Streak</small>
+            </div>
+          </div>
+        </aside>
+
+        <section class="score-stage" aria-label="Sheet music exercise">
+          <div class="score-header">
+            <div>
+              <p id="roundLabel">Round 1</p>
+              <h2 id="targetLabel">Play the highlighted note</h2>
+            </div>
+            <div class="feedback" id="feedback">Waiting for input</div>
+          </div>
+          <div id="score" class="score" role="img" aria-label="Generated sight-reading score"></div>
+          <div class="keyboard-hint" id="keyboardHint" hidden>
+            Computer keys: A S D F G H J K map upward through the current exercise.
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
