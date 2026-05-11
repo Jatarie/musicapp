@@ -64,6 +64,7 @@ const els = {
   rangeSelect: document.querySelector("#rangeSelect"),
   lengthSelect: document.querySelector("#lengthSelect"),
   accidentalsSelect: document.querySelector("#accidentalsSelect"),
+  distanceSelect: document.querySelector("#distanceSelect"),
   newRound: document.querySelector("#newRound"),
   demoMode: document.querySelector("#demoMode"),
   scoreValue: document.querySelector("#scoreValue"),
@@ -75,10 +76,6 @@ const els = {
   score: document.querySelector("#score"),
   keyboardHint: document.querySelector("#keyboardHint")
 };
-
-function noteName(note) {
-  return `${note.step}${note.accidental || ""}${note.octave}`;
-}
 
 function diatonicIndex(note) {
   return note.octave * 7 + STEP_INDEX[note.step];
@@ -126,10 +123,31 @@ function notePool() {
   return pool;
 }
 
+function randomFrom(pool) {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function nextNote(pool, previous) {
+  const distance = els.distanceSelect.value;
+  if (!previous || distance === "any") return randomFrom(pool);
+
+  const maxDistance = Number(distance);
+  const previousIndex = diatonicIndex(previous);
+  const nearby = pool.filter((note) => Math.abs(diatonicIndex(note) - previousIndex) <= maxDistance);
+
+  return randomFrom(nearby.length ? nearby : pool);
+}
+
 function makeRound() {
   const pool = notePool();
   const length = Number(els.lengthSelect.value);
-  state.notes = Array.from({ length }, () => ({ ...pool[Math.floor(Math.random() * pool.length)] }));
+  state.notes = [];
+
+  for (let index = 0; index < length; index += 1) {
+    const note = nextNote(pool, state.notes[index - 1]);
+    state.notes.push({ ...note });
+  }
+
   state.current = 0;
   state.round += 1;
   updateLabels();
@@ -216,7 +234,7 @@ function drawScore() {
 function updateLabels() {
   const target = state.notes[state.current];
   els.roundLabel.textContent = `Round ${state.round}`;
-  els.targetLabel.textContent = target ? `Play ${noteName(target)}` : "Round complete";
+  els.targetLabel.textContent = target ? "Play the highlighted note" : "Round complete";
   els.scoreValue.textContent = state.correct;
   els.missValue.textContent = state.missed;
   els.streakValue.textContent = state.streak;
@@ -362,6 +380,7 @@ els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", makeRound);
 els.lengthSelect.addEventListener("change", makeRound);
 els.accidentalsSelect.addEventListener("change", makeRound);
+els.distanceSelect.addEventListener("change", makeRound);
 document.addEventListener("keydown", handleComputerKey);
 
 makeRound();

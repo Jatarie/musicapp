@@ -34,6 +34,7 @@ GitHub Pages serves over HTTPS, so Web MIDI can request device access there in s
 
 - Treble, bass, and grand-staff practice ranges
 - Configurable round length
+- Configurable melodic distance between consecutive notes
 - Optional accidentals
 - MIDI input selection
 - Octave-exact note checking
