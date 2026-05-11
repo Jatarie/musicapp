@@ -85,14 +85,16 @@ function diatonicIndex(note) {
   return note.octave * 7 + STEP_INDEX[note.step];
 }
 
-function yForTreble(note) {
-  const e4 = 4 * 7 + STEP_INDEX.E;
-  return 170 - (diatonicIndex(note) - e4) * 7;
+function staffTop(staff, mode) {
+  return staff === "bass" && mode === "grand" ? 282 : 142;
 }
 
-function yForBass(note) {
-  const g2 = 2 * 7 + STEP_INDEX.G;
-  return 310 - (diatonicIndex(note) - g2) * 7;
+function staffBottom(staff, mode) {
+  return staffTop(staff, mode) + 56;
+}
+
+function staffMiddle(staff, mode) {
+  return staffTop(staff, mode) + 28;
 }
 
 function staffForNote(note, mode) {
@@ -102,7 +104,12 @@ function staffForNote(note, mode) {
 }
 
 function yForNote(note, mode) {
-  return staffForNote(note, mode) === "bass" ? yForBass(note) : yForTreble(note);
+  const staff = staffForNote(note, mode);
+  const bottomLineNote = staff === "bass"
+    ? 2 * 7 + STEP_INDEX.G
+    : 4 * 7 + STEP_INDEX.E;
+
+  return staffBottom(staff, mode) - (diatonicIndex(note) - bottomLineNote) * 7;
 }
 
 function notePool() {
@@ -142,9 +149,9 @@ function drawStaff(svg, y, clef, label) {
   `;
 }
 
-function ledgerLines(x, y, staff) {
-  const top = staff === "treble" ? 142 : 282;
-  const bottom = staff === "treble" ? 198 : 338;
+function ledgerLines(x, y, staff, mode) {
+  const top = staffTop(staff, mode);
+  const bottom = staffBottom(staff, mode);
   const lines = [];
 
   for (let lineY = bottom + 14; lineY <= y + 1; lineY += 14) {
@@ -180,7 +187,7 @@ function drawScore() {
       index < state.current ? "correct" : "",
       note.missed ? "missed" : ""
     ].filter(Boolean).join(" ");
-    const stemDirection = y < (staff === "bass" ? 310 : 170) ? "down" : "up";
+    const stemDirection = y < staffMiddle(staff, mode) ? "down" : "up";
     const stem = stemDirection === "up"
       ? `<line class="stem" x1="${x + 11}" y1="${y}" x2="${x + 11}" y2="${y - 48}"></line>`
       : `<line class="stem" x1="${x - 11}" y1="${y}" x2="${x - 11}" y2="${y + 48}"></line>`;
@@ -190,7 +197,7 @@ function drawScore() {
 
     return `
       <g class="${className}">
-        ${ledgerLines(x, y, staff)}
+        ${ledgerLines(x, y, staff, mode)}
         ${accidental}
         <ellipse class="note-head" cx="${x}" cy="${y}" rx="11" ry="8" transform="rotate(-18 ${x} ${y})"></ellipse>
         ${stem}
