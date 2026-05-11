@@ -44,6 +44,62 @@ const ACCIDENTALS = [
 
 const STEP_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 const KEYBOARD_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k"];
+const KEYS = {
+  C: { type: "natural", steps: [] },
+  G: { type: "sharp", steps: ["F"] },
+  D: { type: "sharp", steps: ["F", "C"] },
+  A: { type: "sharp", steps: ["F", "C", "G"] },
+  E: { type: "sharp", steps: ["F", "C", "G", "D"] },
+  B: { type: "sharp", steps: ["F", "C", "G", "D", "A"] },
+  F: { type: "flat", steps: ["B"] },
+  Bb: { type: "flat", steps: ["B", "E"] },
+  Eb: { type: "flat", steps: ["B", "E", "A"] },
+  Ab: { type: "flat", steps: ["B", "E", "A", "D"] },
+  Db: { type: "flat", steps: ["B", "E", "A", "D", "G"] },
+  Gb: { type: "flat", steps: ["B", "E", "A", "D", "G", "C"] }
+};
+const SIGNATURE_NOTES = {
+  treble: {
+    sharp: [
+      { step: "F", octave: 5 },
+      { step: "C", octave: 5 },
+      { step: "G", octave: 5 },
+      { step: "D", octave: 5 },
+      { step: "A", octave: 4 },
+      { step: "E", octave: 5 },
+      { step: "B", octave: 4 }
+    ],
+    flat: [
+      { step: "B", octave: 4 },
+      { step: "E", octave: 5 },
+      { step: "A", octave: 4 },
+      { step: "D", octave: 5 },
+      { step: "G", octave: 4 },
+      { step: "C", octave: 5 },
+      { step: "F", octave: 4 }
+    ]
+  },
+  bass: {
+    sharp: [
+      { step: "F", octave: 3 },
+      { step: "C", octave: 3 },
+      { step: "G", octave: 3 },
+      { step: "D", octave: 3 },
+      { step: "A", octave: 2 },
+      { step: "E", octave: 3 },
+      { step: "B", octave: 2 }
+    ],
+    flat: [
+      { step: "B", octave: 2 },
+      { step: "E", octave: 3 },
+      { step: "A", octave: 2 },
+      { step: "D", octave: 3 },
+      { step: "G", octave: 2 },
+      { step: "C", octave: 3 },
+      { step: "F", octave: 2 }
+    ]
+  }
+};
 
 const state = {
   midiAccess: null,
@@ -63,6 +119,7 @@ const els = {
   connectMidi: document.querySelector("#connectMidi"),
   rangeSelect: document.querySelector("#rangeSelect"),
   lengthSelect: document.querySelector("#lengthSelect"),
+  keySelect: document.querySelector("#keySelect"),
   accidentalsSelect: document.querySelector("#accidentalsSelect"),
   distanceSelect: document.querySelector("#distanceSelect"),
   newRound: document.querySelector("#newRound"),
@@ -108,16 +165,43 @@ function yForNote(note, mode) {
   return staffBottom(staff, mode) - (diatonicIndex(note) - bottomLineNote) * 7;
 }
 
+function noteInRange(note, mode) {
+  if (mode === "treble") return note.midi >= 60 && note.midi <= 81;
+  if (mode === "bass") return note.midi >= 40 && note.midi <= 62;
+  return note.midi >= 40 && note.midi <= 81;
+}
+
+function keySignature() {
+  return KEYS[els.keySelect.value] || KEYS.C;
+}
+
+function keyAlteration(note, key = keySignature()) {
+  if (!key.steps.includes(note.step)) return 0;
+  return key.type === "sharp" ? 1 : -1;
+}
+
+function applyKey(note, key = keySignature()) {
+  const alteration = keyAlteration(note, key);
+  return {
+    ...note,
+    midi: note.midi + alteration,
+    keyAccidental: alteration === 1 ? "#" : alteration === -1 ? "b" : ""
+  };
+}
+
 function notePool() {
   const mode = els.rangeSelect.value;
-  let pool = NOTES.filter((note) => {
-    if (mode === "treble") return note.midi >= 60 && note.midi <= 81;
-    if (mode === "bass") return note.midi >= 40 && note.midi <= 62;
-    return note.midi >= 40 && note.midi <= 81;
-  });
+  const key = keySignature();
+  let pool = NOTES
+    .map((note) => applyKey(note, key))
+    .filter((note) => noteInRange(note, mode));
 
-  if (els.accidentalsSelect.value === "some" && mode !== "bass") {
-    pool = pool.concat(ACCIDENTALS);
+  if (els.accidentalsSelect.value === "some") {
+    const existingMidi = new Set(pool.map((note) => note.midi));
+    const chromaticNotes = ACCIDENTALS
+      .filter((note) => !existingMidi.has(note.midi))
+      .filter((note) => noteInRange(note, mode));
+    pool = pool.concat(chromaticNotes);
   }
 
   return pool;
@@ -167,6 +251,20 @@ function drawStaff(svg, y, clef, label) {
   `;
 }
 
+function drawKeySignature(staff, mode) {
+  const key = keySignature();
+  if (key.type === "natural") return "";
+
+  const symbol = key.type === "sharp" ? "&#9839;" : "&#9837;";
+  const marks = SIGNATURE_NOTES[staff][key.type].slice(0, key.steps.length);
+  const yOffset = key.type === "sharp" ? 13 : 6;
+  return marks.map((note, index) => {
+    const x = 132 + index * 15;
+    const y = yForNote({ ...note, midi: staff === "bass" ? 48 : 72 }, mode) + yOffset;
+    return `<text class="key-signature key-signature-${key.type}" x="${x}" y="${y}">${symbol}</text>`;
+  }).join("");
+}
+
 function ledgerLines(x, y, staff, mode) {
   const top = staffTop(staff, mode);
   const bottom = staffBottom(staff, mode);
@@ -187,16 +285,17 @@ function drawScore() {
   const mode = els.rangeSelect.value;
   const width = 980;
   const height = mode === "grand" ? 410 : 270;
+  const noteStart = 155 + keySignature().steps.length * 16;
   const noteGap = 760 / Math.max(state.notes.length, 1);
 
   const staves = mode === "bass"
-    ? drawStaff(null, 142, "bass", "Bass")
+    ? `${drawStaff(null, 142, "bass", "Bass")}${drawKeySignature("bass", mode)}`
     : mode === "treble"
-      ? drawStaff(null, 142, "treble", "Treble")
-      : `${drawStaff(null, 142, "treble", "Treble")}${drawStaff(null, 282, "bass", "Bass")}`;
+      ? `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode)}`
+      : `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode)}${drawStaff(null, 282, "bass", "Bass")}${drawKeySignature("bass", mode)}`;
 
   const notes = state.notes.map((note, index) => {
-    const x = 155 + index * noteGap;
+    const x = noteStart + index * noteGap;
     const y = yForNote(note, mode);
     const staff = staffForNote(note, mode);
     const className = [
@@ -210,7 +309,7 @@ function drawScore() {
       ? `<line class="stem" x1="${x + 11}" y1="${y}" x2="${x + 11}" y2="${y - 48}"></line>`
       : `<line class="stem" x1="${x - 11}" y1="${y}" x2="${x - 11}" y2="${y + 48}"></line>`;
     const accidental = note.accidental
-      ? `<text class="accidental" x="${x - 34}" y="${y + 8}">${note.accidental}</text>`
+      ? `<text class="accidental" x="${x - 34}" y="${y + 8}">${note.accidental === "#" ? "&#9839;" : "&#9837;"}</text>`
       : "";
 
     return `
@@ -380,6 +479,7 @@ els.newRound.addEventListener("click", makeRound);
 els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", makeRound);
 els.lengthSelect.addEventListener("change", makeRound);
+els.keySelect.addEventListener("change", makeRound);
 els.accidentalsSelect.addEventListener("change", makeRound);
 els.distanceSelect.addEventListener("change", makeRound);
 document.addEventListener("keydown", handleComputerKey);

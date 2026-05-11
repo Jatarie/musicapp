@@ -289,8 +289,9 @@ h2 {
   stroke-width: 2;
 }
 
-.accidental,
 .clef,
+.accidental,
+.key-signature,
 .note-label {
   fill: #263238;
   font-family: Georgia, "Times New Roman", serif;
@@ -308,6 +309,24 @@ h2 {
 
 .clef-bass {
   font-size: 58px;
+}
+
+.accidental,
+.key-signature {
+  font-family: "Bravura", "Noto Music", "Segoe UI Symbol", "Apple Symbols", Georgia, serif;
+  font-weight: 400;
+}
+
+.accidental {
+  font-size: 28px;
+}
+
+.key-signature {
+  font-size: 38px;
+}
+
+.key-signature-flat {
+  font-size: 38px;
 }
 
 .keyboard-hint {

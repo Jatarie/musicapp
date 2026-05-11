@@ -43,10 +43,28 @@
           </div>
 
           <div class="control-group">
-            <label for="accidentalsSelect">Accidentals</label>
+            <label for="keySelect">Key</label>
+            <select id="keySelect">
+              <option value="C" selected>C major</option>
+              <option value="G">G major</option>
+              <option value="D">D major</option>
+              <option value="A">A major</option>
+              <option value="E">E major</option>
+              <option value="B">B major</option>
+              <option value="F">F major</option>
+              <option value="Bb">B-flat major</option>
+              <option value="Eb">E-flat major</option>
+              <option value="Ab">A-flat major</option>
+              <option value="Db">D-flat major</option>
+              <option value="Gb">G-flat major</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="accidentalsSelect">Extra accidentals</label>
             <select id="accidentalsSelect">
-              <option value="none">Natural notes</option>
-              <option value="some">Add sharps/flats</option>
+              <option value="none">Key notes only</option>
+              <option value="some">Add chromatic notes</option>
             </select>
           </div>
 

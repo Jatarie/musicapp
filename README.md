@@ -35,7 +35,8 @@ GitHub Pages serves over HTTPS, so Web MIDI can request device access there in s
 - Treble, bass, and grand-staff practice ranges
 - Configurable round length
 - Configurable melodic distance between consecutive notes
-- Optional accidentals
+- Major keys with rendered key signatures
+- Optional extra chromatic notes
 - MIDI input selection
 - Octave-exact note checking
 - Computer-key demo mode for testing without a keyboard.
