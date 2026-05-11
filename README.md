@@ -18,6 +18,18 @@ http://localhost:5173
 
 Use Chrome or Edge for the most reliable Web MIDI support.
 
+## Deploy to GitHub Pages
+
+This repository is ready to publish as a GitHub Pages app. The included workflow deploys the static files in the repository root whenever changes are pushed to `main` or `master`.
+
+In GitHub, open the repository settings and set **Pages > Build and deployment > Source** to **GitHub Actions**. After the workflow runs, the app will be available at:
+
+```text
+https://<your-github-username>.github.io/<repository-name>/
+```
+
+GitHub Pages serves over HTTPS, so Web MIDI can request device access there in supported browsers.
+
 ## Features
 
 - Treble, bass, and grand-staff practice ranges
