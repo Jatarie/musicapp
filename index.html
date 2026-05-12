@@ -61,6 +61,18 @@
           </div>
 
           <div class="control-group">
+            <label for="randomKeyIntervalSelect">Change key</label>
+            <select id="randomKeyIntervalSelect">
+              <option value="0" selected>Off</option>
+              <option value="1">Every 1 minute</option>
+              <option value="2">Every 2 minutes</option>
+              <option value="5">Every 5 minutes</option>
+              <option value="10">Every 10 minutes</option>
+            </select>
+            <div class="countdown" id="keyCountdown">Key changes off</div>
+          </div>
+
+          <div class="control-group">
             <label for="accidentalsSelect">Extra accidentals</label>
             <select id="accidentalsSelect">
               <option value="none">Key notes only</option>

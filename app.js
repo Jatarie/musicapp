@@ -44,6 +44,7 @@ const ACCIDENTALS = [
 
 const STEP_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 const KEYBOARD_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k"];
+const FOURTHS_KEY_SEQUENCE = ["C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D", "G"];
 const KEYS = {
   C: { type: "natural", steps: [] },
   G: { type: "sharp", steps: ["F"] },
@@ -111,7 +112,10 @@ const state = {
   missed: 0,
   streak: 0,
   demoMode: false,
-  midiConnectPending: false
+  midiConnectPending: false,
+  randomKeyTimer: null,
+  keyCountdownTimer: null,
+  nextKeyChangeAt: null
 };
 
 const els = {
@@ -121,6 +125,8 @@ const els = {
   rangeSelect: document.querySelector("#rangeSelect"),
   lengthSelect: document.querySelector("#lengthSelect"),
   keySelect: document.querySelector("#keySelect"),
+  randomKeyIntervalSelect: document.querySelector("#randomKeyIntervalSelect"),
+  keyCountdown: document.querySelector("#keyCountdown"),
   accidentalsSelect: document.querySelector("#accidentalsSelect"),
   distanceSelect: document.querySelector("#distanceSelect"),
   newRound: document.querySelector("#newRound"),
@@ -237,6 +243,72 @@ function makeRound() {
   state.round += 1;
   updateLabels();
   drawScore();
+}
+
+function keyName(value) {
+  const selectedOption = Array.from(els.keySelect.options).find((option) => option.value === value);
+  return selectedOption ? selectedOption.textContent : `${value} major`;
+}
+
+function advanceKeyByFourth() {
+  const currentIndex = FOURTHS_KEY_SEQUENCE.indexOf(els.keySelect.value);
+  const nextIndex = currentIndex === -1
+    ? 0
+    : (currentIndex + 1) % FOURTHS_KEY_SEQUENCE.length;
+  const nextKey = FOURTHS_KEY_SEQUENCE[nextIndex];
+
+  els.keySelect.value = nextKey;
+  makeRound();
+  setFeedback(`Key changed to ${keyName(nextKey)}`);
+}
+
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function updateKeyCountdown() {
+  if (!state.nextKeyChangeAt) {
+    els.keyCountdown.textContent = "Key changes off";
+    return;
+  }
+
+  els.keyCountdown.textContent = `Next key in ${formatDuration(state.nextKeyChangeAt - Date.now())}`;
+}
+
+function updateRandomKeyTimer() {
+  if (state.randomKeyTimer) {
+    window.clearInterval(state.randomKeyTimer);
+    state.randomKeyTimer = null;
+  }
+
+  if (state.keyCountdownTimer) {
+    window.clearInterval(state.keyCountdownTimer);
+    state.keyCountdownTimer = null;
+  }
+
+  state.nextKeyChangeAt = null;
+
+  const minutes = Number(els.randomKeyIntervalSelect.value);
+  if (minutes > 0) {
+    const intervalMilliseconds = minutes * 60 * 1000;
+    state.nextKeyChangeAt = Date.now() + intervalMilliseconds;
+    state.randomKeyTimer = window.setInterval(() => {
+      advanceKeyByFourth();
+      state.nextKeyChangeAt = Date.now() + intervalMilliseconds;
+      updateKeyCountdown();
+    }, intervalMilliseconds);
+    state.keyCountdownTimer = window.setInterval(updateKeyCountdown, 1000);
+  }
+
+  updateKeyCountdown();
+}
+
+function handleKeyChange() {
+  makeRound();
+  updateRandomKeyTimer();
 }
 
 function drawStaff(svg, y, clef, label) {
@@ -501,7 +573,8 @@ els.newRound.addEventListener("click", makeRound);
 els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", makeRound);
 els.lengthSelect.addEventListener("change", makeRound);
-els.keySelect.addEventListener("change", makeRound);
+els.keySelect.addEventListener("change", handleKeyChange);
+els.randomKeyIntervalSelect.addEventListener("change", updateRandomKeyTimer);
 els.accidentalsSelect.addEventListener("change", makeRound);
 els.distanceSelect.addEventListener("change", makeRound);
 document.addEventListener("keydown", handleComputerKey);

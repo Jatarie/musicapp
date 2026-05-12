@@ -162,6 +162,13 @@ h2 {
   font-weight: 700;
 }
 
+.countdown {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .toggle-row {
   display: flex;
   align-items: center;
