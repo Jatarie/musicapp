@@ -113,9 +113,7 @@ const state = {
   streak: 0,
   demoMode: false,
   midiConnectPending: false,
-  randomKeyTimer: null,
-  keyCountdownTimer: null,
-  nextKeyChangeAt: null
+  roundsUntilKeyChange: null
 };
 
 const els = {
@@ -125,7 +123,7 @@ const els = {
   rangeSelect: document.querySelector("#rangeSelect"),
   lengthSelect: document.querySelector("#lengthSelect"),
   keySelect: document.querySelector("#keySelect"),
-  randomKeyIntervalSelect: document.querySelector("#randomKeyIntervalSelect"),
+  keyIntervalSelect: document.querySelector("#keyIntervalSelect"),
   keyCountdown: document.querySelector("#keyCountdown"),
   accidentalsSelect: document.querySelector("#accidentalsSelect"),
   distanceSelect: document.querySelector("#distanceSelect"),
@@ -258,57 +256,56 @@ function advanceKeyByFourth() {
   const nextKey = FOURTHS_KEY_SEQUENCE[nextIndex];
 
   els.keySelect.value = nextKey;
-  makeRound();
   setFeedback(`Key changed to ${keyName(nextKey)}`);
 }
 
-function formatDuration(milliseconds) {
-  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+function selectedKeyRoundInterval() {
+  return Number(els.keyIntervalSelect.value);
 }
 
 function updateKeyCountdown() {
-  if (!state.nextKeyChangeAt) {
+  if (!state.roundsUntilKeyChange) {
     els.keyCountdown.textContent = "Key changes off";
     return;
   }
 
-  els.keyCountdown.textContent = `Next key in ${formatDuration(state.nextKeyChangeAt - Date.now())}`;
+  const label = state.roundsUntilKeyChange === 1 ? "round" : "rounds";
+  els.keyCountdown.textContent = `Next key in ${state.roundsUntilKeyChange} ${label}`;
 }
 
-function updateRandomKeyTimer() {
-  if (state.randomKeyTimer) {
-    window.clearInterval(state.randomKeyTimer);
-    state.randomKeyTimer = null;
-  }
+function resetKeyRoundCounter() {
+  const interval = selectedKeyRoundInterval();
+  state.roundsUntilKeyChange = interval > 0 ? interval : null;
 
-  if (state.keyCountdownTimer) {
-    window.clearInterval(state.keyCountdownTimer);
-    state.keyCountdownTimer = null;
-  }
+  updateKeyCountdown();
+}
 
-  state.nextKeyChangeAt = null;
+function advanceKeyRoundCounter() {
+  const interval = selectedKeyRoundInterval();
+  if (interval <= 0) return;
 
-  const minutes = Number(els.randomKeyIntervalSelect.value);
-  if (minutes > 0) {
-    const intervalMilliseconds = minutes * 60 * 1000;
-    state.nextKeyChangeAt = Date.now() + intervalMilliseconds;
-    state.randomKeyTimer = window.setInterval(() => {
-      advanceKeyByFourth();
-      state.nextKeyChangeAt = Date.now() + intervalMilliseconds;
-      updateKeyCountdown();
-    }, intervalMilliseconds);
-    state.keyCountdownTimer = window.setInterval(updateKeyCountdown, 1000);
+  state.roundsUntilKeyChange = state.roundsUntilKeyChange || interval;
+  state.roundsUntilKeyChange -= 1;
+
+  if (state.roundsUntilKeyChange <= 0) {
+    advanceKeyByFourth();
+    state.roundsUntilKeyChange = interval;
   }
 
   updateKeyCountdown();
 }
 
+function startNextRound(options = {}) {
+  if (options.countKeyRound) {
+    advanceKeyRoundCounter();
+  }
+
+  makeRound();
+}
+
 function handleKeyChange() {
   makeRound();
-  updateRandomKeyTimer();
+  resetKeyRoundCounter();
 }
 
 function drawStaff(svg, y, clef, label) {
@@ -440,7 +437,7 @@ function handlePlayedNote(midi) {
 
   if (state.current >= state.notes.length) {
     setFeedback("Round complete", "good");
-    makeRound();
+    startNextRound({ countKeyRound: true });
   }
 
   updateLabels();
@@ -569,12 +566,12 @@ function handleComputerKey(event) {
 
 els.connectMidi.addEventListener("click", connectMidi);
 els.midiInputs.addEventListener("change", selectMidiInput);
-els.newRound.addEventListener("click", makeRound);
+els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
 els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", makeRound);
 els.lengthSelect.addEventListener("change", makeRound);
 els.keySelect.addEventListener("change", handleKeyChange);
-els.randomKeyIntervalSelect.addEventListener("change", updateRandomKeyTimer);
+els.keyIntervalSelect.addEventListener("change", resetKeyRoundCounter);
 els.accidentalsSelect.addEventListener("change", makeRound);
 els.distanceSelect.addEventListener("change", makeRound);
 document.addEventListener("keydown", handleComputerKey);
