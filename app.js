@@ -1,4 +1,6 @@
 const NOTES = [
+  { midi: 33, step: "A", octave: 1 },
+  { midi: 35, step: "B", octave: 1 },
   { midi: 36, step: "C", octave: 2 },
   { midi: 38, step: "D", octave: 2 },
   { midi: 40, step: "E", octave: 2 },
@@ -27,7 +29,9 @@ const NOTES = [
   { midi: 79, step: "G", octave: 5 },
   { midi: 81, step: "A", octave: 5 },
   { midi: 83, step: "B", octave: 5 },
-  { midi: 84, step: "C", octave: 6 }
+  { midi: 84, step: "C", octave: 6 },
+  { midi: 86, step: "D", octave: 6 },
+  { midi: 88, step: "E", octave: 6 }
 ];
 
 const ACCIDENTALS = [
@@ -175,9 +179,9 @@ function yForNote(note, mode) {
 }
 
 function noteInRange(note, mode) {
-  if (mode === "treble") return note.midi >= 60 && note.midi <= 81;
-  if (mode === "bass") return note.midi >= 40 && note.midi <= 62;
-  return note.midi >= 40 && note.midi <= 81;
+  if (mode === "treble") return note.midi >= 53 && note.midi <= 88;
+  if (mode === "bass") return note.midi >= 33 && note.midi <= 67;
+  return note.midi >= 33 && note.midi <= 88;
 }
 
 function keySignature(keyValue = els.keySelect.value) {
@@ -380,13 +384,14 @@ function drawKeySignature(staff, mode, key = keySignature()) {
 function ledgerLines(x, y, staff, mode) {
   const top = staffTop(staff, mode);
   const bottom = staffBottom(staff, mode);
+  const maxLedgerLines = 3;
   const lines = [];
 
-  for (let lineY = bottom + 14; lineY <= y + 1; lineY += 14) {
+  for (let lineY = bottom + 14, count = 0; lineY <= y + 1 && count < maxLedgerLines; lineY += 14, count += 1) {
     lines.push(`<line class="ledger-line" x1="${x - 18}" y1="${lineY}" x2="${x + 18}" y2="${lineY}"></line>`);
   }
 
-  for (let lineY = top - 14; lineY >= y - 1; lineY -= 14) {
+  for (let lineY = top - 14, count = 0; lineY >= y - 1 && count < maxLedgerLines; lineY -= 14, count += 1) {
     lines.push(`<line class="ledger-line" x1="${x - 18}" y1="${lineY}" x2="${x + 18}" y2="${lineY}"></line>`);
   }
 
