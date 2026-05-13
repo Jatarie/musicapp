@@ -106,6 +106,8 @@ const state = {
   midiAccess: null,
   midiInput: null,
   notes: [],
+  nextNotes: [],
+  nextKey: null,
   current: 0,
   round: 0,
   correct: 0,
@@ -133,9 +135,11 @@ const els = {
   missValue: document.querySelector("#missValue"),
   streakValue: document.querySelector("#streakValue"),
   roundLabel: document.querySelector("#roundLabel"),
+  nextRoundLabel: document.querySelector("#nextRoundLabel"),
   targetLabel: document.querySelector("#targetLabel"),
   feedback: document.querySelector("#feedback"),
   score: document.querySelector("#score"),
+  nextScore: document.querySelector("#nextScore"),
   keyboardHint: document.querySelector("#keyboardHint")
 };
 
@@ -176,8 +180,8 @@ function noteInRange(note, mode) {
   return note.midi >= 40 && note.midi <= 81;
 }
 
-function keySignature() {
-  return KEYS[els.keySelect.value] || KEYS.C;
+function keySignature(keyValue = els.keySelect.value) {
+  return KEYS[keyValue] || KEYS.C;
 }
 
 function keyAlteration(note, key = keySignature()) {
@@ -194,9 +198,9 @@ function applyKey(note, key = keySignature()) {
   };
 }
 
-function notePool() {
+function notePool(keyValue = els.keySelect.value) {
   const mode = els.rangeSelect.value;
-  const key = keySignature();
+  const key = keySignature(keyValue);
   let pool = NOTES
     .map((note) => applyKey(note, key))
     .filter((note) => noteInRange(note, mode));
@@ -227,18 +231,55 @@ function nextNote(pool, previous) {
   return randomFrom(nearby.length ? nearby : pool);
 }
 
-function makeRound() {
-  const pool = notePool();
+function makeNotes(keyValue = els.keySelect.value) {
+  const pool = notePool(keyValue);
   const length = Number(els.lengthSelect.value);
-  state.notes = [];
+  const notes = [];
 
   for (let index = 0; index < length; index += 1) {
-    const note = nextNote(pool, state.notes[index - 1]);
-    state.notes.push({ ...note });
+    const note = nextNote(pool, notes[index - 1]);
+    notes.push({ ...note });
+  }
+
+  return notes;
+}
+
+function keyAfterAdvanceByFourth(keyValue) {
+  const currentIndex = FOURTHS_KEY_SEQUENCE.indexOf(keyValue);
+  const nextIndex = currentIndex === -1
+    ? 0
+    : (currentIndex + 1) % FOURTHS_KEY_SEQUENCE.length;
+
+  return FOURTHS_KEY_SEQUENCE[nextIndex];
+}
+
+function previewKeyValue() {
+  const interval = selectedKeyRoundInterval();
+  if (interval <= 0) return els.keySelect.value;
+
+  const roundsUntilKeyChange = state.roundsUntilKeyChange || interval;
+  return roundsUntilKeyChange <= 1
+    ? keyAfterAdvanceByFourth(els.keySelect.value)
+    : els.keySelect.value;
+}
+
+function prepareNextRound() {
+  state.nextKey = previewKeyValue();
+  state.nextNotes = makeNotes(state.nextKey);
+}
+
+function makeRound(options = {}) {
+  const usePrepared = options.usePrepared !== false;
+
+  if (!usePrepared || !state.nextNotes.length || state.nextKey !== els.keySelect.value) {
+    state.notes = makeNotes();
+  } else {
+    state.notes = state.nextNotes;
   }
 
   state.current = 0;
   state.round += 1;
+  prepareNextRound();
   updateLabels();
   drawScore();
 }
@@ -249,11 +290,7 @@ function keyName(value) {
 }
 
 function advanceKeyByFourth() {
-  const currentIndex = FOURTHS_KEY_SEQUENCE.indexOf(els.keySelect.value);
-  const nextIndex = currentIndex === -1
-    ? 0
-    : (currentIndex + 1) % FOURTHS_KEY_SEQUENCE.length;
-  const nextKey = FOURTHS_KEY_SEQUENCE[nextIndex];
+  const nextKey = keyAfterAdvanceByFourth(els.keySelect.value);
 
   els.keySelect.value = nextKey;
   setFeedback(`Key changed to ${keyName(nextKey)}`);
@@ -280,6 +317,12 @@ function resetKeyRoundCounter() {
   updateKeyCountdown();
 }
 
+function refreshNextRoundPreview() {
+  prepareNextRound();
+  updateLabels();
+  drawScore();
+}
+
 function advanceKeyRoundCounter() {
   const interval = selectedKeyRoundInterval();
   if (interval <= 0) return;
@@ -300,12 +343,12 @@ function startNextRound(options = {}) {
     advanceKeyRoundCounter();
   }
 
-  makeRound();
+  makeRound({ usePrepared: true });
 }
 
 function handleKeyChange() {
-  makeRound();
   resetKeyRoundCounter();
+  makeRound({ usePrepared: false });
 }
 
 function drawStaff(svg, y, clef, label) {
@@ -321,8 +364,7 @@ function drawStaff(svg, y, clef, label) {
   `;
 }
 
-function drawKeySignature(staff, mode) {
-  const key = keySignature();
+function drawKeySignature(staff, mode, key = keySignature()) {
   if (key.type === "natural") return "";
 
   const symbol = key.type === "sharp" ? "&#9839;" : "&#9837;";
@@ -351,27 +393,28 @@ function ledgerLines(x, y, staff, mode) {
   return lines.join("");
 }
 
-function drawScore() {
+function drawScoreSvg(notes, currentIndex, keyValue) {
   const mode = els.rangeSelect.value;
+  const key = keySignature(keyValue);
   const width = 980;
   const height = mode === "grand" ? 410 : 270;
-  const noteStart = 155 + keySignature().steps.length * 16;
-  const noteGap = 760 / Math.max(state.notes.length, 1);
+  const noteStart = 155 + key.steps.length * 16;
+  const noteGap = 760 / Math.max(notes.length, 1);
 
   const staves = mode === "bass"
-    ? `${drawStaff(null, 142, "bass", "Bass")}${drawKeySignature("bass", mode)}`
+    ? `${drawStaff(null, 142, "bass", "Bass")}${drawKeySignature("bass", mode, key)}`
     : mode === "treble"
-      ? `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode)}`
-      : `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode)}${drawStaff(null, 282, "bass", "Bass")}${drawKeySignature("bass", mode)}`;
+      ? `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode, key)}`
+      : `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode, key)}${drawStaff(null, 282, "bass", "Bass")}${drawKeySignature("bass", mode, key)}`;
 
-  const notes = state.notes.map((note, index) => {
+  const noteMarkup = notes.map((note, index) => {
     const x = noteStart + index * noteGap;
     const y = yForNote(note, mode);
     const staff = staffForNote(note, mode);
     const className = [
       "note",
-      index === state.current ? "active" : "",
-      index < state.current ? "correct" : "",
+      index === currentIndex ? "active" : "",
+      currentIndex >= 0 && index < currentIndex ? "correct" : "",
       note.missed ? "missed" : ""
     ].filter(Boolean).join(" ");
     const stemDirection = y < staffMiddle(staff, mode) ? "down" : "up";
@@ -392,18 +435,24 @@ function drawScore() {
     `;
   }).join("");
 
-  els.score.innerHTML = `
+  return `
     <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
       <rect x="0" y="0" width="${width}" height="${height}" fill="#fffdf8"></rect>
       ${staves}
-      ${notes}
+      ${noteMarkup}
     </svg>
   `;
+}
+
+function drawScore() {
+  els.score.innerHTML = drawScoreSvg(state.notes, state.current, els.keySelect.value);
+  els.nextScore.innerHTML = drawScoreSvg(state.nextNotes, -1, state.nextKey || els.keySelect.value);
 }
 
 function updateLabels() {
   const target = state.notes[state.current];
   els.roundLabel.textContent = `Round ${state.round}`;
+  els.nextRoundLabel.textContent = `Next round: Round ${state.round + 1}`;
   els.targetLabel.textContent = target ? "Play the highlighted note" : "Round complete";
   els.scoreValue.textContent = state.correct;
   els.missValue.textContent = state.missed;
@@ -562,12 +611,15 @@ els.connectMidi.addEventListener("click", connectMidi);
 els.midiInputs.addEventListener("change", selectMidiInput);
 els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
 els.demoMode.addEventListener("click", toggleDemoMode);
-els.rangeSelect.addEventListener("change", makeRound);
-els.lengthSelect.addEventListener("change", makeRound);
+els.rangeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.lengthSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
 els.keySelect.addEventListener("change", handleKeyChange);
-els.keyIntervalSelect.addEventListener("change", resetKeyRoundCounter);
-els.accidentalsSelect.addEventListener("change", makeRound);
-els.distanceSelect.addEventListener("change", makeRound);
+els.keyIntervalSelect.addEventListener("change", () => {
+  resetKeyRoundCounter();
+  refreshNextRoundPreview();
+});
+els.accidentalsSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.distanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
 document.addEventListener("keydown", handleComputerKey);
 
-makeRound();
+makeRound({ usePrepared: false });

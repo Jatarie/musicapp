@@ -263,6 +263,23 @@ h2 {
   height: auto;
 }
 
+.next-round {
+  margin-top: 14px;
+}
+
+.next-round p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.score-preview {
+  opacity: 0.78;
+}
+
 .staff-line {
   stroke: #263238;
   stroke-width: 1.8;
