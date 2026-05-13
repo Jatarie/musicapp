@@ -508,12 +508,6 @@ async function connectMidi() {
   }
 }
 
-function autoConnectMidi() {
-  if (!hasMidiConnection()) {
-    connectMidi();
-  }
-}
-
 function selectMidiInput() {
   if (!state.midiAccess) return;
 
@@ -575,6 +569,5 @@ els.keyIntervalSelect.addEventListener("change", resetKeyRoundCounter);
 els.accidentalsSelect.addEventListener("change", makeRound);
 els.distanceSelect.addEventListener("change", makeRound);
 document.addEventListener("keydown", handleComputerKey);
-window.setInterval(autoConnectMidi, 5000);
 
 makeRound();
