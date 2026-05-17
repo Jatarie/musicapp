@@ -133,6 +133,10 @@ const els = {
   keyCountdown: document.querySelector("#keyCountdown"),
   accidentalsSelect: document.querySelector("#accidentalsSelect"),
   distanceSelect: document.querySelector("#distanceSelect"),
+  harmonicEnabled: document.querySelector("#harmonicEnabled"),
+  harmonicDistanceSelect: document.querySelector("#harmonicDistanceSelect"),
+  harmonicChanceSelect: document.querySelector("#harmonicChanceSelect"),
+  chordSizeSelect: document.querySelector("#chordSizeSelect"),
   newRound: document.querySelector("#newRound"),
   demoMode: document.querySelector("#demoMode"),
   scoreValue: document.querySelector("#scoreValue"),
@@ -224,6 +228,19 @@ function randomFrom(pool) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function shuffle(items) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
+function targetNotes(target) {
+  return target && Array.isArray(target.notes) ? target.notes : target ? [target] : [];
+}
+
+function targetLeadNote(target) {
+  const notes = targetNotes(target);
+  return notes[0] || null;
+}
+
 function nextNote(pool, previous) {
   const distance = els.distanceSelect.value;
   if (!previous || distance === "any") return randomFrom(pool);
@@ -235,14 +252,50 @@ function nextNote(pool, previous) {
   return randomFrom(nearby.length ? nearby : pool);
 }
 
+function shouldMakeHarmonicTarget() {
+  if (!els.harmonicEnabled.checked) return false;
+  return Math.random() * 100 < Number(els.harmonicChanceSelect.value);
+}
+
+function makeHarmonicTarget(base, pool) {
+  const maxDistance = Number(els.harmonicDistanceSelect.value);
+  const chordSize = Number(els.chordSizeSelect.value);
+  const baseIndex = diatonicIndex(base);
+  const selected = [{ ...base }];
+  const candidates = shuffle(pool)
+    .filter((note) => note.midi !== base.midi)
+    .filter((note) => Math.abs(diatonicIndex(note) - baseIndex) <= maxDistance);
+
+  candidates.forEach((candidate) => {
+    if (selected.length >= chordSize) return;
+
+    const testNotes = selected.concat(candidate);
+    const indexes = testNotes.map(diatonicIndex);
+    const span = Math.max(...indexes) - Math.min(...indexes);
+
+    if (span <= maxDistance) {
+      selected.push({ ...candidate });
+    }
+  });
+
+  if (selected.length < chordSize) {
+    return { ...base };
+  }
+
+  return {
+    notes: selected.sort((a, b) => a.midi - b.midi),
+    playedMidi: []
+  };
+}
+
 function makeNotes(keyValue = els.keySelect.value) {
   const pool = notePool(keyValue);
   const length = Number(els.lengthSelect.value);
   const notes = [];
 
   for (let index = 0; index < length; index += 1) {
-    const note = nextNote(pool, notes[index - 1]);
-    notes.push({ ...note });
+    const note = nextNote(pool, targetLeadNote(notes[index - 1]));
+    notes.push(shouldMakeHarmonicTarget() ? makeHarmonicTarget(note, pool) : { ...note });
   }
 
   return notes;
@@ -412,30 +465,41 @@ function drawScoreSvg(notes, currentIndex, keyValue) {
       ? `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode, key)}`
       : `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode, key)}${drawStaff(null, 282, "bass", "Bass")}${drawKeySignature("bass", mode, key)}`;
 
-  const noteMarkup = notes.map((note, index) => {
+  const noteMarkup = notes.map((target, index) => {
     const x = noteStart + index * noteGap;
-    const y = yForNote(note, mode);
-    const staff = staffForNote(note, mode);
+    const notesInTarget = targetNotes(target);
     const className = [
       "note",
       index === currentIndex ? "active" : "",
       currentIndex >= 0 && index < currentIndex ? "correct" : "",
-      note.missed ? "missed" : ""
+      target.missed ? "missed" : ""
     ].filter(Boolean).join(" ");
-    const stemDirection = y < staffMiddle(staff, mode) ? "down" : "up";
-    const stem = stemDirection === "up"
-      ? `<line class="stem" x1="${x + 11}" y1="${y}" x2="${x + 11}" y2="${y - 48}"></line>`
-      : `<line class="stem" x1="${x - 11}" y1="${y}" x2="${x - 11}" y2="${y + 48}"></line>`;
-    const accidental = note.accidental
-      ? `<text class="accidental" x="${x - 34}" y="${y + 8}">${note.accidental === "#" ? "&#9839;" : "&#9837;"}</text>`
-      : "";
+    const noteHeads = notesInTarget.map((note, noteIndex) => {
+      const y = yForNote(note, mode);
+      const staff = staffForNote(note, mode);
+      const stemDirection = y < staffMiddle(staff, mode) ? "down" : "up";
+      const adjacentLowerNote = notesInTarget
+        .slice(0, noteIndex)
+        .some((otherNote) => Math.abs(diatonicIndex(otherNote) - diatonicIndex(note)) === 1);
+      const headX = adjacentLowerNote ? x + 14 : x;
+      const stem = stemDirection === "up"
+        ? `<line class="stem" x1="${headX + 11}" y1="${y}" x2="${headX + 11}" y2="${y - 48}"></line>`
+        : `<line class="stem" x1="${headX - 11}" y1="${y}" x2="${headX - 11}" y2="${y + 48}"></line>`;
+      const accidental = note.accidental
+        ? `<text class="accidental" x="${x - 34}" y="${y + 8}">${note.accidental === "#" ? "&#9839;" : "&#9837;"}</text>`
+        : "";
+
+      return `
+        ${ledgerLines(headX, y, staff, mode)}
+        ${accidental}
+        <ellipse class="note-head" cx="${headX}" cy="${y}" rx="11" ry="8" transform="rotate(-18 ${headX} ${y})"></ellipse>
+        ${stem}
+      `;
+    }).join("");
 
     return `
       <g class="${className}">
-        ${ledgerLines(x, y, staff, mode)}
-        ${accidental}
-        <ellipse class="note-head" cx="${x}" cy="${y}" rx="11" ry="8" transform="rotate(-18 ${x} ${y})"></ellipse>
-        ${stem}
+        ${noteHeads}
       </g>
     `;
   }).join("");
@@ -456,9 +520,12 @@ function drawScore() {
 
 function updateLabels() {
   const target = state.notes[state.current];
+  const noteCount = targetNotes(target).length;
   els.roundLabel.textContent = `Round ${state.round}`;
   els.nextRoundLabel.textContent = `Next round: Round ${state.round + 1}`;
-  els.targetLabel.textContent = target ? "Play the highlighted note" : "Round complete";
+  els.targetLabel.textContent = target
+    ? `Play the highlighted ${noteCount > 1 ? "chord" : "note"}`
+    : "Round complete";
   els.scoreValue.textContent = state.correct;
   els.missValue.textContent = state.missed;
   els.streakValue.textContent = state.streak;
@@ -477,7 +544,26 @@ function handlePlayedNote(midi) {
   const target = state.notes[state.current];
   if (!target) return;
 
-  if (midi === target.midi) {
+  const expectedNotes = targetNotes(target);
+  const expectedMidi = expectedNotes.map((note) => note.midi);
+  const isExpected = expectedMidi.includes(midi);
+
+  if (isExpected) {
+    target.playedMidi = target.playedMidi || [];
+    if (!target.playedMidi.includes(midi)) {
+      target.playedMidi.push(midi);
+    }
+
+    const isComplete = expectedMidi.every((noteMidi) => target.playedMidi.includes(noteMidi));
+    if (!isComplete) {
+      const remaining = expectedMidi.length - target.playedMidi.length;
+      const label = remaining === 1 ? "note" : "notes";
+      setFeedback(`${remaining} ${label} left`, "good");
+      updateLabels();
+      drawScore();
+      return;
+    }
+
     state.correct += 1;
     state.streak += 1;
     state.current += 1;
@@ -603,7 +689,8 @@ function handleComputerKey(event) {
 
   const pool = notePool();
   const target = state.notes[state.current];
-  const targetIndex = Math.max(0, pool.findIndex((note) => note.midi === target.midi));
+  const leadNote = targetLeadNote(target);
+  const targetIndex = Math.max(0, pool.findIndex((note) => leadNote && note.midi === leadNote.midi));
   const start = Math.max(0, Math.min(pool.length - KEYBOARD_KEYS.length, targetIndex - 3));
   const mappedNote = pool[start + keyIndex];
 
@@ -625,6 +712,10 @@ els.keyIntervalSelect.addEventListener("change", () => {
 });
 els.accidentalsSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
 els.distanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.harmonicEnabled.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.harmonicDistanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.harmonicChanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.chordSizeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
 document.addEventListener("keydown", handleComputerKey);
 
 makeRound({ usePrepared: false });

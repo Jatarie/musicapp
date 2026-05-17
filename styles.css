@@ -30,7 +30,8 @@ body {
 }
 
 button,
-select {
+select,
+input {
   font: inherit;
 }
 
@@ -162,6 +163,25 @@ h2 {
   font-weight: 700;
 }
 
+.harmonic-controls {
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfdfd;
+}
+
+.harmonic-controls legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.harmonic-controls label:not(:first-of-type) {
+  margin-top: 10px;
+}
+
 .countdown {
   margin-top: 6px;
   color: var(--muted);
@@ -174,6 +194,10 @@ h2 {
   align-items: center;
   gap: 8px;
   margin: 8px 0 16px;
+}
+
+.harmonic-controls .toggle-row {
+  margin: 0 0 10px;
 }
 
 .toggle-row label {
