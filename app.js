@@ -63,49 +63,6 @@ const KEYS = {
   Db: { type: "flat", steps: ["B", "E", "A", "D", "G"] },
   Gb: { type: "flat", steps: ["B", "E", "A", "D", "G", "C"] }
 };
-const SIGNATURE_NOTES = {
-  treble: {
-    sharp: [
-      { step: "F", octave: 5 },
-      { step: "C", octave: 5 },
-      { step: "G", octave: 5 },
-      { step: "D", octave: 5 },
-      { step: "A", octave: 4 },
-      { step: "E", octave: 5 },
-      { step: "B", octave: 4 }
-    ],
-    flat: [
-      { step: "B", octave: 4 },
-      { step: "E", octave: 5 },
-      { step: "A", octave: 4 },
-      { step: "D", octave: 5 },
-      { step: "G", octave: 4 },
-      { step: "C", octave: 5 },
-      { step: "F", octave: 4 }
-    ]
-  },
-  bass: {
-    sharp: [
-      { step: "F", octave: 3 },
-      { step: "C", octave: 3 },
-      { step: "G", octave: 3 },
-      { step: "D", octave: 3 },
-      { step: "A", octave: 2 },
-      { step: "E", octave: 3 },
-      { step: "B", octave: 2 }
-    ],
-    flat: [
-      { step: "B", octave: 2 },
-      { step: "E", octave: 3 },
-      { step: "A", octave: 2 },
-      { step: "D", octave: 3 },
-      { step: "G", octave: 2 },
-      { step: "C", octave: 3 },
-      { step: "F", octave: 2 }
-    ]
-  }
-};
-
 const state = {
   midiAccess: null,
   midiInput: null,
@@ -155,31 +112,10 @@ function diatonicIndex(note) {
   return note.octave * 7 + STEP_INDEX[note.step];
 }
 
-function staffTop(staff, mode) {
-  return staff === "bass" && mode === "grand" ? 282 : 142;
-}
-
-function staffBottom(staff, mode) {
-  return staffTop(staff, mode) + 56;
-}
-
-function staffMiddle(staff, mode) {
-  return staffTop(staff, mode) + 28;
-}
-
 function staffForNote(note, mode) {
   if (mode === "bass") return "bass";
   if (mode === "treble") return "treble";
   return note.midi < 60 ? "bass" : "treble";
-}
-
-function yForNote(note, mode) {
-  const staff = staffForNote(note, mode);
-  const bottomLineNote = staff === "bass"
-    ? 2 * 7 + STEP_INDEX.G
-    : 4 * 7 + STEP_INDEX.E;
-
-  return staffBottom(staff, mode) - (diatonicIndex(note) - bottomLineNote) * 7;
 }
 
 function noteInRange(note, mode) {
@@ -408,114 +344,136 @@ function handleKeyChange() {
   makeRound({ usePrepared: false });
 }
 
-function drawStaff(svg, y, clef, label) {
-  const clefSymbol = clef === "treble" ? "&#119070;" : "&#119074;";
-  const clefY = clef === "treble" ? y + 55 : y + 40;
-  const lines = Array.from({ length: 5 }, (_, index) => {
-    const lineY = y + index * 14;
-    return `<line class="staff-line" x1="70" y1="${lineY}" x2="930" y2="${lineY}"></line>`;
-  }).join("");
-  return `
-    <text class="clef clef-${clef}" x="88" y="${clefY}">${clefSymbol}</text>
-    ${lines}
-  `;
+function vexKey(note) {
+  const accidental = note.accidental || note.keyAccidental || "";
+  return `${note.step.toLowerCase()}${accidental}/${note.octave}`;
 }
 
-function drawKeySignature(staff, mode, key = keySignature()) {
-  if (key.type === "natural") return "";
-
-  const symbol = key.type === "sharp" ? "&#9839;" : "&#9837;";
-  const marks = SIGNATURE_NOTES[staff][key.type].slice(0, key.steps.length);
-  const yOffset = key.type === "sharp" ? 13 : 6;
-  return marks.map((note, index) => {
-    const x = 132 + index * 15;
-    const y = yForNote({ ...note, midi: staff === "bass" ? 48 : 72 }, mode) + yOffset;
-    return `<text class="key-signature key-signature-${key.type}" x="${x}" y="${y}">${symbol}</text>`;
-  }).join("");
-}
-
-function ledgerLines(x, y, staff, mode) {
-  const top = staffTop(staff, mode);
-  const bottom = staffBottom(staff, mode);
-  const maxLedgerLines = 3;
-  const lines = [];
-
-  for (let lineY = bottom + 14, count = 0; lineY <= y + 1 && count < maxLedgerLines; lineY += 14, count += 1) {
-    lines.push(`<line class="ledger-line" x1="${x - 18}" y1="${lineY}" x2="${x + 18}" y2="${lineY}"></line>`);
+function noteStyleForIndex(index, currentIndex, target) {
+  if (target.missed) {
+    return { fillStyle: "#b23a34", strokeStyle: "#b23a34" };
   }
 
-  for (let lineY = top - 14, count = 0; lineY >= y - 1 && count < maxLedgerLines; lineY -= 14, count += 1) {
-    lines.push(`<line class="ledger-line" x1="${x - 18}" y1="${lineY}" x2="${x + 18}" y2="${lineY}"></line>`);
+  if (index === currentIndex) {
+    return { fillStyle: "#f0b43c", strokeStyle: "#4d3708" };
   }
 
-  return lines.join("");
+  if (currentIndex >= 0 && index < currentIndex) {
+    return { fillStyle: "#177245", strokeStyle: "#177245" };
+  }
+
+  return { fillStyle: "#11191d", strokeStyle: "#11191d" };
 }
 
-function drawScoreSvg(notes, currentIndex, keyValue) {
+function makeVexTarget(target, index, staff, currentIndex) {
+  const VF = window.VexFlow;
+  const notesInStaff = targetNotes(target)
+    .filter((note) => staffForNote(note, els.rangeSelect.value) === staff)
+    .sort((a, b) => a.midi - b.midi);
+
+  if (!notesInStaff.length) {
+    return new VF.GhostNote("q");
+  }
+
+  const staveNote = new VF.StaveNote({
+    clef: staff,
+    keys: notesInStaff.map(vexKey),
+    duration: "q",
+    auto_stem: true
+  });
+
+  notesInStaff.forEach((note, noteIndex) => {
+    if (note.accidental) {
+      staveNote.addModifier(new VF.Accidental(note.accidental), noteIndex);
+    }
+  });
+
+  staveNote.setStyle(noteStyleForIndex(index, currentIndex, target));
+  return staveNote;
+}
+
+function addStaveConnectors(context, trebleStave, bassStave) {
+  const VF = window.VexFlow;
+
+  if (!VF.StaveConnector) return;
+
+  [
+    VF.StaveConnector.type.BRACE,
+    VF.StaveConnector.type.SINGLE_LEFT,
+    VF.StaveConnector.type.SINGLE_RIGHT
+  ].forEach((type) => {
+    new VF.StaveConnector(trebleStave, bassStave)
+      .setType(type)
+      .setContext(context)
+      .draw();
+  });
+}
+
+function drawVexScore(container, notes, currentIndex, keyValue) {
+  const VF = window.VexFlow;
+  if (!VF) {
+    container.textContent = "VexFlow failed to load";
+    return;
+  }
+
+  const scale = 1.42;
   const mode = els.rangeSelect.value;
-  const key = keySignature(keyValue);
-  const width = 980;
-  const height = mode === "grand" ? 410 : 270;
-  const noteStart = 155 + key.steps.length * 16;
-  const noteGap = 760 / Math.max(notes.length, 1);
+  const width = Math.max(container.clientWidth || 760, 760);
+  const height = mode === "grand" ? 400 : 250;
+  const drawingWidth = width / scale;
+  const staveWidth = drawingWidth - 50;
 
-  const staves = mode === "bass"
-    ? `${drawStaff(null, 142, "bass", "Bass")}${drawKeySignature("bass", mode, key)}`
-    : mode === "treble"
-      ? `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode, key)}`
-      : `${drawStaff(null, 142, "treble", "Treble")}${drawKeySignature("treble", mode, key)}${drawStaff(null, 282, "bass", "Bass")}${drawKeySignature("bass", mode, key)}`;
+  container.innerHTML = "";
 
-  const noteMarkup = notes.map((target, index) => {
-    const x = noteStart + index * noteGap;
-    const notesInTarget = targetNotes(target);
-    const className = [
-      "note",
-      index === currentIndex ? "active" : "",
-      currentIndex >= 0 && index < currentIndex ? "correct" : "",
-      target.missed ? "missed" : ""
-    ].filter(Boolean).join(" ");
-    const noteHeads = notesInTarget.map((note, noteIndex) => {
-      const y = yForNote(note, mode);
-      const staff = staffForNote(note, mode);
-      const stemDirection = y < staffMiddle(staff, mode) ? "down" : "up";
-      const adjacentLowerNote = notesInTarget
-        .slice(0, noteIndex)
-        .some((otherNote) => Math.abs(diatonicIndex(otherNote) - diatonicIndex(note)) === 1);
-      const headX = adjacentLowerNote ? x + 14 : x;
-      const stem = stemDirection === "up"
-        ? `<line class="stem" x1="${headX + 11}" y1="${y}" x2="${headX + 11}" y2="${y - 48}"></line>`
-        : `<line class="stem" x1="${headX - 11}" y1="${y}" x2="${headX - 11}" y2="${y + 48}"></line>`;
-      const accidental = note.accidental
-        ? `<text class="accidental" x="${x - 34}" y="${y + 8}">${note.accidental === "#" ? "&#9839;" : "&#9837;"}</text>`
-        : "";
+  const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+  renderer.resize(width, height);
 
-      return `
-        ${ledgerLines(headX, y, staff, mode)}
-        ${accidental}
-        <ellipse class="note-head" cx="${headX}" cy="${y}" rx="11" ry="8" transform="rotate(-18 ${headX} ${y})"></ellipse>
-        ${stem}
-      `;
-    }).join("");
+  const context = renderer.getContext();
+  context.scale(scale, scale);
+  context.setBackgroundFillStyle("#fffdf8");
 
-    return `
-      <g class="${className}">
-        ${noteHeads}
-      </g>
-    `;
-  }).join("");
+  const staves = [];
+  const makeStave = (clef, y) => {
+    const stave = new VF.Stave(18, y, staveWidth)
+      .addClef(clef)
+      .addKeySignature(keyValue);
+    stave.setContext(context).draw();
+    staves.push({ clef, stave });
+    return stave;
+  };
 
-  return `
-    <svg viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
-      <rect x="0" y="0" width="${width}" height="${height}" fill="#fffdf8"></rect>
-      ${staves}
-      ${noteMarkup}
-    </svg>
-  `;
+  if (mode === "treble") {
+    makeStave("treble", 52);
+  } else if (mode === "bass") {
+    makeStave("bass", 52);
+  } else {
+    const trebleStave = makeStave("treble", 42);
+    const bassStave = makeStave("bass", 182);
+    addStaveConnectors(context, trebleStave, bassStave);
+  }
+
+  const voices = staves.map(({ clef, stave }) => {
+    const staveNotes = notes.map((target, index) => makeVexTarget(target, index, clef, currentIndex));
+    const voice = new VF.Voice({ num_beats: Math.max(notes.length, 1), beat_value: 4 })
+      .setStrict(false)
+      .addTickables(staveNotes);
+
+    return { voice, stave };
+  });
+
+  const vexVoices = voices.map(({ voice }) => voice);
+  new VF.Formatter()
+    .joinVoices(vexVoices)
+    .format(vexVoices, staveWidth - 95);
+
+  voices.forEach(({ voice, stave }) => {
+    voice.draw(context, stave);
+  });
 }
 
 function drawScore() {
-  els.score.innerHTML = drawScoreSvg(state.notes, state.current, els.keySelect.value);
-  els.nextScore.innerHTML = drawScoreSvg(state.nextNotes, -1, state.nextKey || els.keySelect.value);
+  drawVexScore(els.score, state.notes, state.current, els.keySelect.value);
+  drawVexScore(els.nextScore, state.nextNotes, -1, state.nextKey || els.keySelect.value);
 }
 
 function updateLabels() {
@@ -718,4 +676,24 @@ els.harmonicChanceSelect.addEventListener("change", () => makeRound({ usePrepare
 els.chordSizeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
 document.addEventListener("keydown", handleComputerKey);
 
-makeRound({ usePrepared: false });
+function initializeNotation() {
+  if (!window.VexFlow) {
+    setFeedback("VexFlow failed to load", "bad");
+    return Promise.resolve();
+  }
+
+  if (!window.VexFlow.loadFonts || !window.VexFlow.setFonts) {
+    return Promise.resolve();
+  }
+
+  return window.VexFlow
+    .loadFonts("Bravura", "Academico")
+    .then(() => {
+      window.VexFlow.setFonts("Bravura", "Academico");
+    })
+    .catch(() => {
+      setFeedback("VexFlow fonts unavailable", "bad");
+    });
+}
+
+initializeNotation().then(() => makeRound({ usePrepared: false }));
