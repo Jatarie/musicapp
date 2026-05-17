@@ -419,7 +419,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   const scale = 1.42;
   const mode = els.rangeSelect.value;
   const width = Math.max(container.clientWidth || 760, 760);
-  const height = mode === "grand" ? 400 : 250;
+  const height = mode === "grand" ? 500 : 250;
   const drawingWidth = width / scale;
   const staveWidth = drawingWidth - 50;
 
