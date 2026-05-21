@@ -274,6 +274,7 @@ h2 {
 
 .score {
   width: 100%;
+  min-height: 340px;
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;

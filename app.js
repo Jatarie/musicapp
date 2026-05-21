@@ -1,4 +1,8 @@
 const NOTES = [
+  { midi: 26, step: "D", octave: 1 },
+  { midi: 28, step: "E", octave: 1 },
+  { midi: 29, step: "F", octave: 1 },
+  { midi: 31, step: "G", octave: 1 },
   { midi: 33, step: "A", octave: 1 },
   { midi: 35, step: "B", octave: 1 },
   { midi: 36, step: "C", octave: 2 },
@@ -31,10 +35,28 @@ const NOTES = [
   { midi: 83, step: "B", octave: 5 },
   { midi: 84, step: "C", octave: 6 },
   { midi: 86, step: "D", octave: 6 },
-  { midi: 88, step: "E", octave: 6 }
+  { midi: 88, step: "E", octave: 6 },
+  { midi: 89, step: "F", octave: 6 },
+  { midi: 91, step: "G", octave: 6 },
+  { midi: 93, step: "A", octave: 6 },
+  { midi: 95, step: "B", octave: 6 }
 ];
 
 const ACCIDENTALS = [
+  { midi: 27, step: "D", octave: 1, accidental: "#" },
+  { midi: 30, step: "F", octave: 1, accidental: "#" },
+  { midi: 32, step: "G", octave: 1, accidental: "#" },
+  { midi: 34, step: "A", octave: 1, accidental: "#" },
+  { midi: 37, step: "C", octave: 2, accidental: "#" },
+  { midi: 39, step: "D", octave: 2, accidental: "#" },
+  { midi: 42, step: "F", octave: 2, accidental: "#" },
+  { midi: 44, step: "G", octave: 2, accidental: "#" },
+  { midi: 46, step: "A", octave: 2, accidental: "#" },
+  { midi: 49, step: "C", octave: 3, accidental: "#" },
+  { midi: 51, step: "D", octave: 3, accidental: "#" },
+  { midi: 54, step: "F", octave: 3, accidental: "#" },
+  { midi: 56, step: "G", octave: 3, accidental: "#" },
+  { midi: 58, step: "A", octave: 3, accidental: "#" },
   { midi: 61, step: "C", octave: 4, accidental: "#" },
   { midi: 63, step: "D", octave: 4, accidental: "#" },
   { midi: 66, step: "F", octave: 4, accidental: "#" },
@@ -43,7 +65,13 @@ const ACCIDENTALS = [
   { midi: 73, step: "C", octave: 5, accidental: "#" },
   { midi: 75, step: "D", octave: 5, accidental: "#" },
   { midi: 78, step: "F", octave: 5, accidental: "#" },
-  { midi: 80, step: "G", octave: 5, accidental: "#" }
+  { midi: 80, step: "G", octave: 5, accidental: "#" },
+  { midi: 82, step: "A", octave: 5, accidental: "#" },
+  { midi: 85, step: "C", octave: 6, accidental: "#" },
+  { midi: 87, step: "D", octave: 6, accidental: "#" },
+  { midi: 90, step: "F", octave: 6, accidental: "#" },
+  { midi: 92, step: "G", octave: 6, accidental: "#" },
+  { midi: 94, step: "A", octave: 6, accidental: "#" }
 ];
 
 const STEP_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
@@ -119,9 +147,9 @@ function staffForNote(note, mode) {
 }
 
 function noteInRange(note, mode) {
-  if (mode === "treble") return note.midi >= 53 && note.midi <= 88;
-  if (mode === "bass") return note.midi >= 33 && note.midi <= 67;
-  return note.midi >= 33 && note.midi <= 88;
+  if (mode === "treble") return note.midi >= 47 && note.midi <= 95;
+  if (mode === "bass") return note.midi >= 26 && note.midi <= 74;
+  return note.midi >= 26 && note.midi <= 95;
 }
 
 function keySignature(keyValue = els.keySelect.value) {
@@ -419,11 +447,12 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   const scale = 1.42;
   const mode = els.rangeSelect.value;
   const width = Math.max(container.clientWidth || 760, 760);
-  const height = mode === "grand" ? 500 : 250;
+  const height = mode === "grand" ? 620 : 340;
   const drawingWidth = width / scale;
   const staveWidth = drawingWidth - 50;
 
   container.innerHTML = "";
+  container.style.minHeight = `${height}px`;
 
   const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
   renderer.resize(width, height);
@@ -443,12 +472,12 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   };
 
   if (mode === "treble") {
-    makeStave("treble", 52);
+    makeStave("treble", 62);
   } else if (mode === "bass") {
-    makeStave("bass", 52);
+    makeStave("bass", 62);
   } else {
-    const trebleStave = makeStave("treble", 42);
-    const bassStave = makeStave("bass", 182);
+    const trebleStave = makeStave("treble", 62);
+    const bassStave = makeStave("bass", 212);
     addStaveConnectors(context, trebleStave, bassStave);
   }
 
