@@ -23,7 +23,21 @@
       </section>
 
       <section class="workspace">
-        <aside class="controls" aria-label="Exercise settings">
+        <aside class="controls" id="settingsPanel" aria-label="Exercise settings">
+          <div class="controls-header">
+            <h2>Settings</h2>
+            <button
+              class="panel-toggle"
+              id="toggleControls"
+              type="button"
+              aria-expanded="true"
+              aria-controls="settingsContent"
+            >
+              Minimise
+            </button>
+          </div>
+
+          <div class="controls-content" id="settingsContent">
           <div class="control-group">
             <label for="rangeSelect">Range</label>
             <select id="rangeSelect">
@@ -142,10 +156,21 @@
               <small>Streak</small>
             </div>
           </div>
+          </div>
         </aside>
 
         <section class="score-stage" aria-label="Sheet music exercise">
           <div class="score-header">
+            <button
+              class="panel-toggle show-controls"
+              id="showControls"
+              type="button"
+              aria-expanded="false"
+              aria-controls="settingsContent"
+              hidden
+            >
+              Settings
+            </button>
             <div>
               <p id="roundLabel">Round 1</p>
               <h2 id="targetLabel">Play the highlighted note</h2>

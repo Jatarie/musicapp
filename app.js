@@ -108,6 +108,10 @@ const state = {
 };
 
 const els = {
+  workspace: document.querySelector(".workspace"),
+  settingsPanel: document.querySelector("#settingsPanel"),
+  toggleControls: document.querySelector("#toggleControls"),
+  showControls: document.querySelector("#showControls"),
   midiStatus: document.querySelector("#midiStatus"),
   midiInputs: document.querySelector("#midiInputs"),
   connectMidi: document.querySelector("#connectMidi"),
@@ -135,6 +139,16 @@ const els = {
   nextScore: document.querySelector("#nextScore"),
   keyboardHint: document.querySelector("#keyboardHint")
 };
+
+function setControlsCollapsed(isCollapsed) {
+  els.workspace.classList.toggle("controls-collapsed", isCollapsed);
+  els.settingsPanel.hidden = isCollapsed;
+  els.showControls.hidden = !isCollapsed;
+  els.toggleControls.setAttribute("aria-expanded", String(!isCollapsed));
+  els.showControls.setAttribute("aria-expanded", String(!isCollapsed));
+
+  requestAnimationFrame(drawScore);
+}
 
 function diatonicIndex(note) {
   return note.octave * 7 + STEP_INDEX[note.step];
@@ -687,6 +701,8 @@ function handleComputerKey(event) {
 }
 
 els.connectMidi.addEventListener("click", connectMidi);
+els.toggleControls.addEventListener("click", () => setControlsCollapsed(true));
+els.showControls.addEventListener("click", () => setControlsCollapsed(false));
 els.midiInputs.addEventListener("change", selectMidiInput);
 els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
 els.demoMode.addEventListener("click", toggleDemoMode);

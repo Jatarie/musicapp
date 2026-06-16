@@ -138,6 +138,14 @@ h2 {
   gap: 18px;
 }
 
+.workspace.controls-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace.controls-collapsed .controls {
+  display: none;
+}
+
 .controls,
 .score-stage {
   border: 1px solid var(--line);
@@ -148,6 +156,35 @@ h2 {
 
 .controls {
   padding: 16px;
+}
+
+.controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.controls-header h2 {
+  font-size: 1rem;
+}
+
+.panel-toggle {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.show-controls {
+  flex: 0 0 auto;
+  color: var(--ink);
+  background: #e7eeee;
+}
+
+.show-controls:hover {
+  background: #d8e3e3;
 }
 
 .control-group {
