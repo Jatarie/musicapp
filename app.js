@@ -77,6 +77,10 @@ const ACCIDENTALS = [
 const STEP_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
 const KEYBOARD_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k"];
 const FOURTHS_KEY_SEQUENCE = ["C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D", "G"];
+const STAFF_RANGES = {
+  treble: { min: 47, max: 95 },
+  bass: { min: 26, max: 74 }
+};
 const KEYS = {
   C: { type: "natural", steps: [] },
   G: { type: "sharp", steps: ["F"] },
@@ -157,13 +161,51 @@ function diatonicIndex(note) {
 function staffForNote(note, mode) {
   if (mode === "bass") return "bass";
   if (mode === "treble") return "treble";
+  if (note.staff) return note.staff;
   return note.midi < 60 ? "bass" : "treble";
 }
 
 function noteInRange(note, mode) {
-  if (mode === "treble") return note.midi >= 47 && note.midi <= 95;
-  if (mode === "bass") return note.midi >= 26 && note.midi <= 74;
-  return note.midi >= 26 && note.midi <= 95;
+  if (mode === "treble" || mode === "bass") {
+    const range = STAFF_RANGES[mode];
+    return note.midi >= range.min && note.midi <= range.max;
+  }
+
+  return noteInRange(note, "treble") || noteInRange(note, "bass");
+}
+
+function grandStavesForNote(note) {
+  return ["treble", "bass"].filter((staff) => noteInRange(note, staff));
+}
+
+function noteWithGrandStaff(note, preferredStaff = "") {
+  const staves = grandStavesForNote(note);
+  const staff = preferredStaff && staves.includes(preferredStaff)
+    ? preferredStaff
+    : randomFrom(staves);
+
+  return { ...note, staff };
+}
+
+function targetWithStaffForMode(target, mode) {
+  if (mode !== "grand") return target;
+
+  const notes = targetNotes(target);
+  const leadNote = notes[0];
+  const staffedLead = leadNote ? noteWithGrandStaff(leadNote) : null;
+
+  if (!target || !Array.isArray(target.notes)) {
+    return staffedLead || target;
+  }
+
+  return {
+    ...target,
+    notes: target.notes.map((note, index) => (
+      index === 0
+        ? staffedLead
+        : noteWithGrandStaff(note, staffedLead ? staffedLead.staff : "")
+    ))
+  };
 }
 
 function keySignature(keyValue = els.keySelect.value) {
@@ -269,11 +311,13 @@ function makeHarmonicTarget(base, pool) {
 function makeNotes(keyValue = els.keySelect.value) {
   const pool = notePool(keyValue);
   const length = Number(els.lengthSelect.value);
+  const mode = els.rangeSelect.value;
   const notes = [];
 
   for (let index = 0; index < length; index += 1) {
     const note = nextNote(pool, targetLeadNote(notes[index - 1]));
-    notes.push(shouldMakeHarmonicTarget() ? makeHarmonicTarget(note, pool) : { ...note });
+    const target = shouldMakeHarmonicTarget() ? makeHarmonicTarget(note, pool) : { ...note };
+    notes.push(targetWithStaffForMode(target, mode));
   }
 
   return notes;
@@ -458,11 +502,13 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     return;
   }
 
-  const scale = 1.42;
+  const horizontalScale = 1.42;
+  const verticalScale = horizontalScale * 0.7;
   const mode = els.rangeSelect.value;
   const width = Math.max(container.clientWidth || 760, 760);
-  const height = mode === "grand" ? 620 : 340;
-  const drawingWidth = width / scale;
+  const baseHeight = mode === "grand" ? 620 : 340;
+  const height = Math.round(baseHeight * 0.7);
+  const drawingWidth = width / horizontalScale;
   const staveWidth = drawingWidth - 50;
 
   container.innerHTML = "";
@@ -472,7 +518,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   renderer.resize(width, height);
 
   const context = renderer.getContext();
-  context.scale(scale, scale);
+  context.scale(horizontalScale, verticalScale);
   context.setBackgroundFillStyle("#fffdf8");
 
   const staves = [];
