@@ -81,6 +81,10 @@ const STAFF_RANGES = {
   treble: { min: 47, max: 95 },
   bass: { min: 26, max: 74 }
 };
+const SYSTEMS_PER_ROUND = 4;
+const MEASURES_PER_SYSTEM = 4;
+const BEATS_PER_MEASURE = 4;
+const TARGETS_PER_ROUND = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * BEATS_PER_MEASURE;
 const KEYS = {
   C: { type: "natural", steps: [] },
   G: { type: "sharp", steps: ["F"] },
@@ -108,7 +112,8 @@ const state = {
   streak: 0,
   demoMode: false,
   midiConnectPending: false,
-  roundsUntilKeyChange: null
+  roundsUntilKeyChange: null,
+  roundComplete: false
 };
 
 const els = {
@@ -120,7 +125,6 @@ const els = {
   midiInputs: document.querySelector("#midiInputs"),
   connectMidi: document.querySelector("#connectMidi"),
   rangeSelect: document.querySelector("#rangeSelect"),
-  lengthSelect: document.querySelector("#lengthSelect"),
   keySelect: document.querySelector("#keySelect"),
   keyIntervalSelect: document.querySelector("#keyIntervalSelect"),
   keyCountdown: document.querySelector("#keyCountdown"),
@@ -141,10 +145,12 @@ const els = {
   feedback: document.querySelector("#feedback"),
   score: document.querySelector("#score"),
   nextScore: document.querySelector("#nextScore"),
+  nextRound: document.querySelector("#nextRound"),
   keyboardHint: document.querySelector("#keyboardHint")
 };
 
 function setControlsCollapsed(isCollapsed) {
+  document.body.classList.toggle("notation-focus", isCollapsed);
   els.workspace.classList.toggle("controls-collapsed", isCollapsed);
   els.settingsPanel.hidden = isCollapsed;
   els.showControls.hidden = !isCollapsed;
@@ -310,11 +316,10 @@ function makeHarmonicTarget(base, pool) {
 
 function makeNotes(keyValue = els.keySelect.value) {
   const pool = notePool(keyValue);
-  const length = Number(els.lengthSelect.value);
   const mode = els.rangeSelect.value;
   const notes = [];
 
-  for (let index = 0; index < length; index += 1) {
+  for (let index = 0; index < TARGETS_PER_ROUND; index += 1) {
     const note = nextNote(pool, targetLeadNote(notes[index - 1]));
     const target = shouldMakeHarmonicTarget() ? makeHarmonicTarget(note, pool) : { ...note };
     notes.push(targetWithStaffForMode(target, mode));
@@ -357,6 +362,7 @@ function makeRound(options = {}) {
   }
 
   state.current = 0;
+  state.roundComplete = false;
   state.round += 1;
   prepareNextRound();
   updateLabels();
@@ -478,16 +484,20 @@ function makeVexTarget(target, index, staff, currentIndex) {
   return staveNote;
 }
 
-function addStaveConnectors(context, trebleStave, bassStave) {
+function addStaveConnectors(context, trebleStave, bassStave, isSystemStart) {
   const VF = window.VexFlow;
 
   if (!VF.StaveConnector) return;
 
-  [
-    VF.StaveConnector.type.BRACE,
-    VF.StaveConnector.type.SINGLE_LEFT,
-    VF.StaveConnector.type.SINGLE_RIGHT
-  ].forEach((type) => {
+  const connectorTypes = [VF.StaveConnector.type.SINGLE_RIGHT];
+  if (isSystemStart) {
+    connectorTypes.unshift(
+      VF.StaveConnector.type.BRACE,
+      VF.StaveConnector.type.SINGLE_LEFT
+    );
+  }
+
+  connectorTypes.forEach((type) => {
     new VF.StaveConnector(trebleStave, bassStave)
       .setType(type)
       .setContext(context)
@@ -502,14 +512,13 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     return;
   }
 
-  const horizontalScale = 1.42;
-  const verticalScale = horizontalScale * 0.7;
-  const mode = els.rangeSelect.value;
-  const width = Math.max(container.clientWidth || 760, 760);
-  const baseHeight = mode === "grand" ? 620 : 340;
-  const height = Math.round(baseHeight * 0.7);
-  const drawingWidth = width / horizontalScale;
-  const staveWidth = drawingWidth - 50;
+  const width = Math.max(container.clientWidth || 960, 960);
+  const systemSpacing = 300;
+  const height = 1205;
+  const pageMargin = 18;
+  const systemWidth = width - (pageMargin * 2);
+  const firstMeasureWidth = systemWidth * 0.28;
+  const otherMeasureWidth = (systemWidth - firstMeasureWidth) / (MEASURES_PER_SYSTEM - 1);
 
   container.innerHTML = "";
   container.style.minHeight = `${height}px`;
@@ -518,51 +527,77 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   renderer.resize(width, height);
 
   const context = renderer.getContext();
-  context.scale(horizontalScale, verticalScale);
   context.setBackgroundFillStyle("#fffdf8");
 
-  const staves = [];
-  const makeStave = (clef, y) => {
-    const stave = new VF.Stave(18, y, staveWidth)
-      .addClef(clef)
-      .addKeySignature(keyValue);
+  const makeStave = (clef, x, y, staveWidth, isSystemStart, isScoreStart) => {
+    const stave = new VF.Stave(x, y, staveWidth);
+    if (isSystemStart) {
+      stave.addClef(clef).addKeySignature(keyValue);
+    }
+    if (isScoreStart) {
+      stave.addTimeSignature("4/4");
+    }
     stave.setContext(context).draw();
-    staves.push({ clef, stave });
     return stave;
   };
 
-  if (mode === "treble") {
-    makeStave("treble", 62);
-  } else if (mode === "bass") {
-    makeStave("bass", 62);
-  } else {
-    const trebleStave = makeStave("treble", 62);
-    const bassStave = makeStave("bass", 212);
-    addStaveConnectors(context, trebleStave, bassStave);
+  for (let systemIndex = 0; systemIndex < SYSTEMS_PER_ROUND; systemIndex += 1) {
+    const trebleY = 74 + (systemIndex * systemSpacing);
+    const bassY = trebleY + 110;
+    let measureX = pageMargin;
+
+    for (let measureIndex = 0; measureIndex < MEASURES_PER_SYSTEM; measureIndex += 1) {
+      const isSystemStart = measureIndex === 0;
+      const isScoreStart = systemIndex === 0 && isSystemStart;
+      const measureWidth = isSystemStart ? firstMeasureWidth : otherMeasureWidth;
+      const trebleStave = makeStave(
+        "treble", measureX, trebleY, measureWidth, isSystemStart, isScoreStart
+      );
+      const bassStave = makeStave(
+        "bass", measureX, bassY, measureWidth, isSystemStart, isScoreStart
+      );
+      addStaveConnectors(context, trebleStave, bassStave, isSystemStart);
+
+      const measureNumber = (systemIndex * MEASURES_PER_SYSTEM) + measureIndex;
+      const targetOffset = measureNumber * BEATS_PER_MEASURE;
+      const measureTargets = notes.slice(targetOffset, targetOffset + BEATS_PER_MEASURE);
+      const staves = [
+        { clef: "treble", stave: trebleStave },
+        { clef: "bass", stave: bassStave }
+      ];
+      const voices = staves.map(({ clef, stave }) => {
+        const staveNotes = measureTargets.map((target, index) => (
+          makeVexTarget(target, targetOffset + index, clef, currentIndex)
+        ));
+        const voice = new VF.Voice({ num_beats: BEATS_PER_MEASURE, beat_value: 4 })
+          .setStrict(false)
+          .addTickables(staveNotes);
+
+        return { voice, stave };
+      });
+      const vexVoices = voices.map(({ voice }) => voice);
+      const noteAreaWidth = Math.min(
+        ...staves.map(({ stave }) => stave.getNoteEndX() - stave.getNoteStartX())
+      ) - 12;
+
+      new VF.Formatter()
+        .joinVoices(vexVoices)
+        .format(vexVoices, noteAreaWidth);
+      voices.forEach(({ voice, stave }) => voice.draw(context, stave));
+
+      measureX += measureWidth;
+    }
   }
-
-  const voices = staves.map(({ clef, stave }) => {
-    const staveNotes = notes.map((target, index) => makeVexTarget(target, index, clef, currentIndex));
-    const voice = new VF.Voice({ num_beats: Math.max(notes.length, 1), beat_value: 4 })
-      .setStrict(false)
-      .addTickables(staveNotes);
-
-    return { voice, stave };
-  });
-
-  const vexVoices = voices.map(({ voice }) => voice);
-  new VF.Formatter()
-    .joinVoices(vexVoices)
-    .format(vexVoices, staveWidth - 95);
-
-  voices.forEach(({ voice, stave }) => {
-    voice.draw(context, stave);
-  });
 }
 
 function drawScore() {
   drawVexScore(els.score, state.notes, state.current, els.keySelect.value);
-  drawVexScore(els.nextScore, state.nextNotes, -1, state.nextKey || els.keySelect.value);
+  els.nextRound.hidden = !state.roundComplete;
+  if (state.roundComplete) {
+    drawVexScore(els.nextScore, state.nextNotes, -1, state.nextKey || els.keySelect.value);
+  } else {
+    els.nextScore.innerHTML = "";
+  }
 }
 
 function updateLabels() {
@@ -623,8 +658,8 @@ function handlePlayedNote(midi) {
   }
 
   if (state.current >= state.notes.length) {
+    state.roundComplete = true;
     setFeedback("Round complete", "good");
-    startNextRound({ countKeyRound: true });
   }
 
   updateLabels();
@@ -753,7 +788,6 @@ els.midiInputs.addEventListener("change", selectMidiInput);
 els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
 els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.lengthSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
 els.keySelect.addEventListener("change", handleKeyChange);
 els.keyIntervalSelect.addEventListener("change", () => {
   resetKeyRoundCounter();

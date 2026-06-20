@@ -146,6 +146,45 @@ h2 {
   display: none;
 }
 
+body.notation-focus .topbar {
+  display: none;
+}
+
+body.notation-focus .app-shell {
+  width: 100%;
+  padding: 0;
+}
+
+body.notation-focus .workspace {
+  gap: 0;
+}
+
+body.notation-focus .score-stage {
+  position: relative;
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+body.notation-focus .score-header {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 20px;
+  margin: 0;
+}
+
+body.notation-focus .score-header > :not(.show-controls) {
+  display: none;
+}
+
+body.notation-focus .score-stage > .score {
+  border: 0;
+  border-radius: 0;
+}
+
 .controls,
 .score-stage {
   border: 1px solid var(--line);

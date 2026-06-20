@@ -48,15 +48,6 @@
           </div>
 
           <div class="control-group">
-            <label for="lengthSelect">Notes per round</label>
-            <select id="lengthSelect">
-              <option value="4">4</option>
-              <option value="8">8</option>
-              <option value="12" selected>12</option>
-            </select>
-          </div>
-
-          <div class="control-group">
             <label for="keySelect">Key</label>
             <select id="keySelect">
               <option value="C" selected>C major</option>
@@ -178,7 +169,7 @@
             <div class="feedback" id="feedback">Waiting for input</div>
           </div>
           <div id="score" class="score" role="img" aria-label="Generated sight-reading score"></div>
-          <div class="next-round">
+          <div class="next-round" id="nextRound" hidden>
             <p id="nextRoundLabel">Next round</p>
             <div id="nextScore" class="score score-preview" role="img" aria-label="Next sight-reading score"></div>
           </div>

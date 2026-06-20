@@ -33,7 +33,7 @@ GitHub Pages serves over HTTPS, so Web MIDI can request device access there in s
 ## Features
 
 - Treble, bass, and grand-staff practice ranges
-- Configurable round length
+- Four systems of four 4/4 measures per round
 - Configurable melodic distance between consecutive notes
 - Major keys with rendered key signatures
 - Optional extra chromatic notes
