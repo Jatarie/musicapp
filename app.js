@@ -738,6 +738,10 @@ function vexDurationForBeatValue(beatValue) {
 }
 
 function noteStyleForIndex(index, currentIndex, target) {
+  if (target.corrected) {
+    return { fillStyle: "#f0b43c", strokeStyle: "#4d3708" };
+  }
+
   if (target.missed) {
     return { fillStyle: "#b23a34", strokeStyle: "#b23a34" };
   }
@@ -948,6 +952,7 @@ function handlePlayedNote(midi) {
 
     state.correct += 1;
     state.streak += 1;
+    if (target.missed) target.corrected = true;
     state.current = firstPlayableTargetIndex(state.notes, state.current + 1);
     setFeedback("Correct", "good");
   } else {
