@@ -112,8 +112,7 @@ const state = {
   streak: 0,
   demoMode: false,
   midiConnectPending: false,
-  roundsUntilKeyChange: null,
-  roundComplete: false
+  roundsUntilKeyChange: null
 };
 
 const els = {
@@ -140,12 +139,9 @@ const els = {
   missValue: document.querySelector("#missValue"),
   streakValue: document.querySelector("#streakValue"),
   roundLabel: document.querySelector("#roundLabel"),
-  nextRoundLabel: document.querySelector("#nextRoundLabel"),
   targetLabel: document.querySelector("#targetLabel"),
   feedback: document.querySelector("#feedback"),
   score: document.querySelector("#score"),
-  nextScore: document.querySelector("#nextScore"),
-  nextRound: document.querySelector("#nextRound"),
   keyboardHint: document.querySelector("#keyboardHint")
 };
 
@@ -362,7 +358,6 @@ function makeRound(options = {}) {
   }
 
   state.current = 0;
-  state.roundComplete = false;
   state.round += 1;
   prepareNextRound();
   updateLabels();
@@ -592,19 +587,12 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
 
 function drawScore() {
   drawVexScore(els.score, state.notes, state.current, els.keySelect.value);
-  els.nextRound.hidden = !state.roundComplete;
-  if (state.roundComplete) {
-    drawVexScore(els.nextScore, state.nextNotes, -1, state.nextKey || els.keySelect.value);
-  } else {
-    els.nextScore.innerHTML = "";
-  }
 }
 
 function updateLabels() {
   const target = state.notes[state.current];
   const noteCount = targetNotes(target).length;
   els.roundLabel.textContent = `Round ${state.round}`;
-  els.nextRoundLabel.textContent = `Next round: Round ${state.round + 1}`;
   els.targetLabel.textContent = target
     ? `Play the highlighted ${noteCount > 1 ? "chord" : "note"}`
     : "Round complete";
@@ -658,8 +646,8 @@ function handlePlayedNote(midi) {
   }
 
   if (state.current >= state.notes.length) {
-    state.roundComplete = true;
     setFeedback("Round complete", "good");
+    startNextRound({ countKeyRound: true });
   }
 
   updateLabels();
