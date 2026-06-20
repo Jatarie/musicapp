@@ -471,7 +471,7 @@ function makeVexTarget(target, index, staff, currentIndex) {
     clef: staff,
     keys: notesInStaff.map(vexKey),
     duration: "q",
-    auto_stem: true
+    autoStem: true
   });
 
   notesInStaff.forEach((note, noteIndex) => {
