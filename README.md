@@ -33,7 +33,9 @@ GitHub Pages serves over HTTPS, so Web MIDI can request device access there in s
 ## Features
 
 - Treble, bass, and grand-staff practice ranges
-- Four systems of four 4/4 measures per round
+- Four systems of four measures per score page (4/4 for generated rounds; imported meter for MIDI pieces)
+- Standard MIDI file import with meter/key detection, chord grouping, rests, and score pagination
+- Included Gymnopédie No. 1 MIDI exercise
 - Configurable melodic distance between consecutive notes
 - Major keys with rendered key signatures
 - Optional extra chromatic notes

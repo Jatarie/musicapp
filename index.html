@@ -56,13 +56,23 @@
               <option value="A">A major</option>
               <option value="E">E major</option>
               <option value="B">B major</option>
+              <option value="F#">F-sharp major</option>
+              <option value="C#">C-sharp major</option>
               <option value="F">F major</option>
               <option value="Bb">B-flat major</option>
               <option value="Eb">E-flat major</option>
               <option value="Ab">A-flat major</option>
               <option value="Db">D-flat major</option>
               <option value="Gb">G-flat major</option>
+              <option value="Cb">C-flat major</option>
             </select>
+          </div>
+
+          <div class="control-group midi-import">
+            <label for="midiFile">Import MIDI piece</label>
+            <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi">
+            <button id="loadIncludedMidi" class="secondary" type="button">Load included Gymnopédie</button>
+            <div class="countdown" id="midiFileStatus">Generated exercises</div>
           </div>
 
           <div class="control-group">

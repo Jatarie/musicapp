@@ -64,6 +64,17 @@ select {
   color: var(--ink);
 }
 
+input[type="file"] {
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.midi-import button {
+  width: 100%;
+  margin-top: 8px;
+}
+
 .app-shell {
   width: min(1180px, calc(100vw - 32px));
   margin: 0 auto;

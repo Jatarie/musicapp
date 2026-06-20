@@ -85,6 +85,7 @@ const SYSTEMS_PER_ROUND = 4;
 const MEASURES_PER_SYSTEM = 4;
 const BEATS_PER_MEASURE = 4;
 const TARGETS_PER_ROUND = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * BEATS_PER_MEASURE;
+const INCLUDED_MIDI_FILE = "gymnopedie-no-1-satie.mid";
 const KEYS = {
   C: { type: "natural", steps: [] },
   G: { type: "sharp", steps: ["F"] },
@@ -92,12 +93,15 @@ const KEYS = {
   A: { type: "sharp", steps: ["F", "C", "G"] },
   E: { type: "sharp", steps: ["F", "C", "G", "D"] },
   B: { type: "sharp", steps: ["F", "C", "G", "D", "A"] },
+  "F#": { type: "sharp", steps: ["F", "C", "G", "D", "A", "E"] },
+  "C#": { type: "sharp", steps: ["F", "C", "G", "D", "A", "E", "B"] },
   F: { type: "flat", steps: ["B"] },
   Bb: { type: "flat", steps: ["B", "E"] },
   Eb: { type: "flat", steps: ["B", "E", "A"] },
   Ab: { type: "flat", steps: ["B", "E", "A", "D"] },
   Db: { type: "flat", steps: ["B", "E", "A", "D", "G"] },
-  Gb: { type: "flat", steps: ["B", "E", "A", "D", "G", "C"] }
+  Gb: { type: "flat", steps: ["B", "E", "A", "D", "G", "C"] },
+  Cb: { type: "flat", steps: ["B", "E", "A", "D", "G", "C", "F"] }
 };
 const state = {
   midiAccess: null,
@@ -112,7 +116,13 @@ const state = {
   streak: 0,
   demoMode: false,
   midiConnectPending: false,
-  roundsUntilKeyChange: null
+  roundsUntilKeyChange: null,
+  beatsPerMeasure: BEATS_PER_MEASURE,
+  beatValue: 4,
+  timeSignature: "4/4",
+  importedPages: null,
+  importedPageIndex: -1,
+  importedFileName: ""
 };
 
 const els = {
@@ -133,6 +143,9 @@ const els = {
   harmonicDistanceSelect: document.querySelector("#harmonicDistanceSelect"),
   harmonicChanceSelect: document.querySelector("#harmonicChanceSelect"),
   chordSizeSelect: document.querySelector("#chordSizeSelect"),
+  midiFile: document.querySelector("#midiFile"),
+  loadIncludedMidi: document.querySelector("#loadIncludedMidi"),
+  midiFileStatus: document.querySelector("#midiFileStatus"),
   newRound: document.querySelector("#newRound"),
   demoMode: document.querySelector("#demoMode"),
   scoreValue: document.querySelector("#scoreValue"),
@@ -255,12 +268,282 @@ function shuffle(items) {
 }
 
 function targetNotes(target) {
+  if (target && target.rest) return [];
   return target && Array.isArray(target.notes) ? target.notes : target ? [target] : [];
 }
 
 function targetLeadNote(target) {
   const notes = targetNotes(target);
   return notes[0] || null;
+}
+
+function readMidiFile(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const view = new DataView(arrayBuffer);
+  let offset = 0;
+
+  const readText = (length) => {
+    const value = new TextDecoder().decode(bytes.slice(offset, offset + length));
+    offset += length;
+    return value;
+  };
+  const readUint16 = () => {
+    const value = view.getUint16(offset);
+    offset += 2;
+    return value;
+  };
+  const readUint32 = () => {
+    const value = view.getUint32(offset);
+    offset += 4;
+    return value;
+  };
+  const readVlq = (trackEnd) => {
+    let value = 0;
+    let byte;
+    do {
+      if (offset >= trackEnd) throw new Error("Unexpected end of MIDI track");
+      byte = bytes[offset];
+      offset += 1;
+      value = (value * 128) + (byte & 0x7f);
+    } while (byte & 0x80);
+    return value;
+  };
+
+  if (readText(4) !== "MThd") throw new Error("Not a Standard MIDI file");
+  const headerLength = readUint32();
+  if (headerLength < 6) throw new Error("Invalid MIDI header");
+  const format = readUint16();
+  const trackCount = readUint16();
+  const division = readUint16();
+  offset += headerLength - 6;
+
+  if (format > 1) throw new Error("MIDI format 2 is not supported");
+  if (division & 0x8000) throw new Error("SMPTE-timed MIDI files are not supported");
+
+  const noteEvents = [];
+  const trackNames = [];
+  let timeSignature = null;
+  let keySignature = null;
+
+  for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+    if (readText(4) !== "MTrk") throw new Error("Invalid MIDI track header");
+    const trackLength = readUint32();
+    const trackEnd = offset + trackLength;
+    let tick = 0;
+    let runningStatus = null;
+
+    while (offset < trackEnd) {
+      tick += readVlq(trackEnd);
+      let status = bytes[offset];
+      if (status < 0x80) {
+        if (runningStatus === null) throw new Error("Invalid MIDI running status");
+        status = runningStatus;
+      } else {
+        offset += 1;
+        if (status < 0xf0) runningStatus = status;
+      }
+
+      if (status === 0xff) {
+        const type = bytes[offset];
+        offset += 1;
+        const length = readVlq(trackEnd);
+        const data = bytes.slice(offset, offset + length);
+        offset += length;
+
+        if (type === 0x03) {
+          trackNames[trackIndex] = new TextDecoder().decode(data).replace(/\0/g, "").trim();
+        } else if (type === 0x58 && data.length >= 2 && !timeSignature) {
+          timeSignature = { numerator: data[0], denominator: 2 ** data[1] };
+        } else if (type === 0x59 && data.length >= 2 && !keySignature) {
+          keySignature = { sharpsFlats: data[0] > 127 ? data[0] - 256 : data[0], minor: data[1] === 1 };
+        }
+        continue;
+      }
+
+      if (status === 0xf0 || status === 0xf7) {
+        offset += readVlq(trackEnd);
+        continue;
+      }
+
+      const messageType = status & 0xf0;
+      const dataLength = messageType === 0xc0 || messageType === 0xd0 ? 1 : 2;
+      const firstData = bytes[offset];
+      const secondData = dataLength === 2 ? bytes[offset + 1] : 0;
+      offset += dataLength;
+
+      if (messageType === 0x90 && secondData > 0) {
+        noteEvents.push({ tick, midi: firstData, trackIndex });
+      }
+    }
+
+    offset = trackEnd;
+  }
+
+  return {
+    division,
+    noteEvents,
+    trackNames,
+    timeSignature: timeSignature || { numerator: 4, denominator: 4 },
+    keySignature: keySignature || { sharpsFlats: 0, minor: false }
+  };
+}
+
+function keyValueForMidiSignature(sharpsFlats) {
+  const majorKeys = ["Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#"];
+  return majorKeys[Math.max(0, Math.min(14, sharpsFlats + 7))];
+}
+
+function importedNoteForMidi(midi, keyValue, staff) {
+  const sharpSpellings = [
+    ["C", ""], ["C", "#"], ["D", ""], ["D", "#"], ["E", ""], ["F", ""],
+    ["F", "#"], ["G", ""], ["G", "#"], ["A", ""], ["A", "#"], ["B", ""]
+  ];
+  const flatSpellings = [
+    ["C", ""], ["D", "b"], ["D", ""], ["E", "b"], ["E", ""], ["F", ""],
+    ["G", "b"], ["G", ""], ["A", "b"], ["A", ""], ["B", "b"], ["B", ""]
+  ];
+  const key = KEYS[keyValue] || KEYS.C;
+  const spellings = key.type === "flat" ? flatSpellings : sharpSpellings;
+  const [step, writtenAccidental] = spellings[pitchClass(midi)];
+  const keyAccidental = key.steps.includes(step) ? (key.type === "sharp" ? "#" : "b") : "";
+  let accidental = "";
+
+  if (writtenAccidental !== keyAccidental) {
+    accidental = writtenAccidental || (keyAccidental ? "n" : "");
+  }
+
+  return {
+    midi,
+    step,
+    octave: Math.floor(midi / 12) - 1,
+    accidental,
+    keyAccidental: writtenAccidental === keyAccidental ? keyAccidental : "",
+    staff
+  };
+}
+
+function convertMidiToTargets(midi) {
+  const { numerator, denominator } = midi.timeSignature;
+  if (![1, 2, 4, 8, 16].includes(denominator)) throw new Error(`Unsupported ${numerator}/${denominator} meter`);
+  if (!midi.noteEvents.length) throw new Error("The MIDI file contains no note events");
+
+  const keyValue = keyValueForMidiSignature(midi.keySignature.sharpsFlats);
+  const eventsByTrack = new Map();
+  midi.noteEvents.forEach((event) => {
+    const values = eventsByTrack.get(event.trackIndex) || [];
+    values.push(event.midi);
+    eventsByTrack.set(event.trackIndex, values);
+  });
+  const tracksByPitch = [...eventsByTrack.entries()]
+    .map(([trackIndex, values]) => ({
+      trackIndex,
+      average: values.reduce((sum, value) => sum + value, 0) / values.length
+    }))
+    .sort((a, b) => a.average - b.average);
+  const staffByTrack = new Map();
+  tracksByPitch.forEach(({ trackIndex, average }, index) => {
+    const staff = tracksByPitch.length === 1
+      ? (average < 60 ? "bass" : "treble")
+      : (index < tracksByPitch.length / 2 ? "bass" : "treble");
+    staffByTrack.set(trackIndex, staff);
+  });
+
+  const eventsByBeat = new Map();
+  const ticksPerBeat = midi.division * (4 / denominator);
+  midi.noteEvents.forEach((event) => {
+    const beat = Math.round(event.tick / ticksPerBeat);
+    const events = eventsByBeat.get(beat) || [];
+    events.push(event);
+    eventsByBeat.set(beat, events);
+  });
+  const finalBeat = Math.max(...eventsByBeat.keys());
+  const targets = [];
+
+  for (let beat = 0; beat <= finalBeat; beat += 1) {
+    const events = eventsByBeat.get(beat) || [];
+    const uniqueEvents = [...new Map(events.map((event) => [event.midi, event])).values()];
+    if (!uniqueEvents.length) {
+      targets.push({ rest: true });
+      continue;
+    }
+
+    const notes = uniqueEvents
+      .map((event) => importedNoteForMidi(event.midi, keyValue, staffByTrack.get(event.trackIndex)))
+      .sort((a, b) => a.midi - b.midi);
+    targets.push(notes.length === 1 ? notes[0] : { notes, playedMidi: [] });
+  }
+
+  return { targets, keyValue, numerator, denominator };
+}
+
+function firstPlayableTargetIndex(targets, startIndex = 0) {
+  let index = startIndex;
+  while (index < targets.length && targets[index].rest) index += 1;
+  return index;
+}
+
+function startImportedPage(pageIndex) {
+  const page = state.importedPages && state.importedPages[pageIndex];
+  if (!page) {
+    setFeedback("MIDI piece complete", "good");
+    return false;
+  }
+
+  state.importedPageIndex = pageIndex;
+  state.notes = page;
+  state.current = firstPlayableTargetIndex(page);
+  state.round = pageIndex + 1;
+  updateLabels();
+  drawScore();
+  return true;
+}
+
+function importMidiArrayBuffer(arrayBuffer, fileName) {
+  const midi = readMidiFile(arrayBuffer);
+  const converted = convertMidiToTargets(midi);
+  const pageSize = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * converted.numerator;
+  const pages = [];
+
+  for (let index = 0; index < converted.targets.length; index += pageSize) {
+    const page = converted.targets.slice(index, index + pageSize);
+    while (page.length < pageSize) page.push({ rest: true });
+    pages.push(page);
+  }
+
+  state.importedPages = pages;
+  state.importedPageIndex = -1;
+  state.importedFileName = fileName.replace(/\.(mid|midi)$/i, "");
+  state.beatsPerMeasure = converted.numerator;
+  state.beatValue = converted.denominator;
+  state.timeSignature = `${converted.numerator}/${converted.denominator}`;
+  state.nextNotes = [];
+  state.nextKey = null;
+  els.rangeSelect.value = "grand";
+  els.keySelect.value = converted.keyValue;
+  els.midiFileStatus.textContent = `${fileName} · ${pages.length} score ${pages.length === 1 ? "page" : "pages"}`;
+  setFeedback(`Loaded ${fileName}`, "good");
+  startImportedPage(0);
+}
+
+async function loadMidiFile(file) {
+  if (!file) return;
+  try {
+    importMidiArrayBuffer(await file.arrayBuffer(), file.name);
+  } catch (error) {
+    els.midiFileStatus.textContent = "MIDI import failed";
+    setFeedback(error.message || "Could not import MIDI file", "bad");
+  }
+}
+
+async function loadIncludedMidi() {
+  try {
+    const response = await fetch(INCLUDED_MIDI_FILE);
+    if (!response.ok) throw new Error(`Could not load ${INCLUDED_MIDI_FILE}`);
+    importMidiArrayBuffer(await response.arrayBuffer(), INCLUDED_MIDI_FILE);
+  } catch (error) {
+    els.midiFileStatus.textContent = "Included MIDI unavailable";
+    setFeedback(error.message || "Could not load included MIDI", "bad");
+  }
 }
 
 function nextNote(pool, previous) {
@@ -351,6 +634,14 @@ function prepareNextRound() {
 function makeRound(options = {}) {
   const usePrepared = options.usePrepared !== false;
 
+  state.importedPages = null;
+  state.importedPageIndex = -1;
+  state.importedFileName = "";
+  state.beatsPerMeasure = BEATS_PER_MEASURE;
+  state.beatValue = 4;
+  state.timeSignature = "4/4";
+  els.midiFileStatus.textContent = "Generated exercises";
+
   if (!usePrepared || !state.nextNotes.length || state.nextKey !== els.keySelect.value) {
     state.notes = makeNotes();
   } else {
@@ -419,6 +710,11 @@ function advanceKeyRoundCounter() {
 }
 
 function startNextRound(options = {}) {
+  if (state.importedPages) {
+    startImportedPage(state.importedPageIndex + 1);
+    return;
+  }
+
   if (options.countKeyRound) {
     advanceKeyRoundCounter();
   }
@@ -432,8 +728,12 @@ function handleKeyChange() {
 }
 
 function vexKey(note) {
-  const accidental = note.accidental || note.keyAccidental || "";
+  const accidental = note.accidental === "n" ? "" : note.accidental || note.keyAccidental || "";
   return `${note.step.toLowerCase()}${accidental}/${note.octave}`;
+}
+
+function vexDurationForBeatValue(beatValue) {
+  return ({ 1: "w", 2: "h", 4: "q", 8: "8", 16: "16" })[beatValue] || "q";
 }
 
 function noteStyleForIndex(index, currentIndex, target) {
@@ -454,18 +754,27 @@ function noteStyleForIndex(index, currentIndex, target) {
 
 function makeVexTarget(target, index, staff, currentIndex) {
   const VF = window.VexFlow;
+  const duration = vexDurationForBeatValue(state.beatValue);
+  if (target && target.rest) {
+    return new VF.StaveNote({
+      clef: staff,
+      keys: [staff === "bass" ? "d/3" : "b/4"],
+      duration: `${duration}r`
+    });
+  }
+
   const notesInStaff = targetNotes(target)
     .filter((note) => staffForNote(note, els.rangeSelect.value) === staff)
     .sort((a, b) => a.midi - b.midi);
 
   if (!notesInStaff.length) {
-    return new VF.GhostNote("q");
+    return new VF.GhostNote(duration);
   }
 
   const staveNote = new VF.StaveNote({
     clef: staff,
     keys: notesInStaff.map(vexKey),
-    duration: "q",
+    duration,
     autoStem: true
   });
 
@@ -530,7 +839,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
       stave.addClef(clef).addKeySignature(keyValue);
     }
     if (isScoreStart) {
-      stave.addTimeSignature("4/4");
+      stave.addTimeSignature(state.timeSignature);
     }
     stave.setContext(context).draw();
     return stave;
@@ -554,8 +863,8 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
       addStaveConnectors(context, trebleStave, bassStave, isSystemStart);
 
       const measureNumber = (systemIndex * MEASURES_PER_SYSTEM) + measureIndex;
-      const targetOffset = measureNumber * BEATS_PER_MEASURE;
-      const measureTargets = notes.slice(targetOffset, targetOffset + BEATS_PER_MEASURE);
+      const targetOffset = measureNumber * state.beatsPerMeasure;
+      const measureTargets = notes.slice(targetOffset, targetOffset + state.beatsPerMeasure);
       const staves = [
         { clef: "treble", stave: trebleStave },
         { clef: "bass", stave: bassStave }
@@ -564,7 +873,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
         const staveNotes = measureTargets.map((target, index) => (
           makeVexTarget(target, targetOffset + index, clef, currentIndex)
         ));
-        const voice = new VF.Voice({ num_beats: BEATS_PER_MEASURE, beat_value: 4 })
+        const voice = new VF.Voice({ num_beats: state.beatsPerMeasure, beat_value: state.beatValue })
           .setStrict(false)
           .addTickables(staveNotes);
 
@@ -592,7 +901,9 @@ function drawScore() {
 function updateLabels() {
   const target = state.notes[state.current];
   const noteCount = targetNotes(target).length;
-  els.roundLabel.textContent = `Round ${state.round}`;
+  els.roundLabel.textContent = state.importedPages
+    ? `${state.importedFileName} · Page ${state.importedPageIndex + 1} of ${state.importedPages.length}`
+    : `Round ${state.round}`;
   els.targetLabel.textContent = target
     ? `Play the highlighted ${noteCount > 1 ? "chord" : "note"}`
     : "Round complete";
@@ -636,7 +947,7 @@ function handlePlayedNote(midi) {
 
     state.correct += 1;
     state.streak += 1;
-    state.current += 1;
+    state.current = firstPlayableTargetIndex(state.notes, state.current + 1);
     setFeedback("Correct", "good");
   } else {
     state.missed += 1;
@@ -784,6 +1095,8 @@ els.connectMidi.addEventListener("click", connectMidi);
 els.toggleControls.addEventListener("click", () => setControlsCollapsed(true));
 els.showControls.addEventListener("click", () => setControlsCollapsed(false));
 els.midiInputs.addEventListener("change", selectMidiInput);
+els.midiFile.addEventListener("change", () => loadMidiFile(els.midiFile.files[0]));
+els.loadIncludedMidi.addEventListener("click", loadIncludedMidi);
 els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
 els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
