@@ -514,7 +514,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
-  const height = 1205;
+  const height = 1280;
   const pageMargin = 18;
   const systemWidth = width - (pageMargin * 2);
   const firstMeasureWidth = systemWidth * 0.28;
