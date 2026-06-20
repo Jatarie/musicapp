@@ -87,6 +87,10 @@ const BEATS_PER_MEASURE = 4;
 const TARGETS_PER_ROUND = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * BEATS_PER_MEASURE;
 const INCLUDED_MIDI_FILE = "gymnopedie-no-1-satie.mid";
 const INCLUDED_MIDI_BASE64 = "TVRoZAAAAAYAAQACAeBNVHJrAAAEBwD/AwZQaWFubwAA/1gEAwIYCAD/WQICAAD/UQMQ9EcAsHkAAMAAALAHZAAKQABbAABdAAD/IQEAsGCQTiGDX04AAVEjg19RAAFPJYNfTwABTieDX04AAUkqg19JAAFHLINfRwABSS6DX0kAAUoxg19KAAFFLYsfRQABQiGDYEIArQBOIYNfTgABUSODX1EAAU8lg19PAAFOJ4NfTgABSSmDX0kAAUcrg19HAAFJLYNfSQABSi+DX0oAAUUxix9FAAFJLIsfSQABTieLH04AAUAhoAdAAIFZRTGDX0UAAUcyg19HAAFININfSAABTDaDX0wAAUo3g19KAAFHOYNfRwABSjuDX0oAAUg8g19IAAFHPoNfRwABSkCSL0oAMUoxg19KAAFMM4NfTAABTTWDX00AAU83g19PAAFROYNfUQABSDuDX0gAAUo9g19KAAFMQINfTAABSj6DX0oAAUc7g19HAAFKOZIvSgAxSjGDX0oAAU8zix9PAAFOOYsfTgABR0CDX0cAAUU+g19FAAFHO4NfRwABSTmDX0kAAUo2g19KAAFMNINfTAABSTGDX0kAAUoxg19KAAFMLoNfTAABQiuDYDkoAD4og185AAA+AAE7JQA+JQBDJYNfQgAAOwAAPgAAQwABPCEAQCEARSEASCGKVzwAAEAAAEUAAEgAST4hAEIhAEUhAEohilc+AABCAABFAABKALEpTiGDX04AAVEkg19RAAFPJ4NfTwABTiqDX04AAUktg19JAAFHMYNfRwABSSyDX0kAAUong19KAAFFIYsfRQABQiGDYEIArQBOIYNfTgABUSODX1EAAU8lg19PAAFOJ4NfTgABSSmDX0kAAUcrg19HAAFJLYNfSQABSi+DX0oAAUUxix9FAAFJLYsfSQABTimLH04AAUAloE9AAIERRTGDX0UAAUczg19HAAFINoNfSAABTDiDX0wAAUo7g19KAAFHPYNfRwABSkCDX0oAAUg7g19IAAFHNoNfRwABSjGSL0oAMUoxg19KAAFMM4NfTAABTTWDX00AAU83g19PAAFROYNfUQABSDuDX0gAAUo9g19KAAFMQINfTAABSj6DX0oAAUc7g19HAAFKOZIvSgAxSjGDX0oAAU8zix9PAAFNOYsfTQABR0CDX0cAAUg/g19IAAFNPYNf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";
+const KEY_TONICS = {
+  C: 0, "C#": 1, Db: 1, D: 2, Eb: 3, E: 4, F: 5, "F#": 6,
+  Gb: 6, G: 7, Ab: 8, A: 9, Bb: 10, B: 11, Cb: 11
+};
 const KEYS = {
   C: { type: "natural", steps: [] },
   G: { type: "sharp", steps: ["F"] },
@@ -122,6 +126,8 @@ const state = {
   beatValue: 4,
   timeSignature: "4/4",
   importedPages: null,
+  importedSourceTargets: null,
+  importedOriginalKey: "",
   importedPageIndex: -1,
   importedFileName: ""
 };
@@ -499,31 +505,53 @@ function startImportedPage(pageIndex) {
   return true;
 }
 
-function importMidiArrayBuffer(arrayBuffer, fileName) {
-  const midi = readMidiFile(arrayBuffer);
-  const converted = convertMidiToTargets(midi);
-  const pageSize = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * converted.numerator;
-  const pages = [];
+function importedTargetInKey(target, keyValue, semitoneOffset) {
+  if (target.rest) return { rest: true };
 
-  for (let index = 0; index < converted.targets.length; index += pageSize) {
-    const page = converted.targets.slice(index, index + pageSize);
+  const notes = targetNotes(target)
+    .map((note) => importedNoteForMidi(note.midi + semitoneOffset, keyValue, note.staff))
+    .sort((a, b) => a.midi - b.midi);
+  return notes.length === 1 ? notes[0] : { notes, playedMidi: [] };
+}
+
+function rebuildImportedPages(keyValue, feedbackMessage) {
+  const originalTonic = KEY_TONICS[state.importedOriginalKey];
+  const selectedTonic = KEY_TONICS[keyValue];
+  let semitoneOffset = ((selectedTonic - originalTonic) + 12) % 12;
+  if (semitoneOffset > 6) semitoneOffset -= 12;
+
+  const targets = state.importedSourceTargets.map((target) => (
+    importedTargetInKey(target, keyValue, semitoneOffset)
+  ));
+  const pageSize = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  const pages = [];
+  for (let index = 0; index < targets.length; index += pageSize) {
+    const page = targets.slice(index, index + pageSize);
     while (page.length < pageSize) page.push({ rest: true });
     pages.push(page);
   }
 
   state.importedPages = pages;
   state.importedPageIndex = -1;
+  state.nextNotes = [];
+  state.nextKey = null;
+  els.midiFileStatus.textContent = `${state.importedFileName}.mid · ${keyName(keyValue)} · ${pages.length} score ${pages.length === 1 ? "page" : "pages"}`;
+  setFeedback(feedbackMessage, "good");
+  startImportedPage(0);
+}
+
+function importMidiArrayBuffer(arrayBuffer, fileName) {
+  const midi = readMidiFile(arrayBuffer);
+  const converted = convertMidiToTargets(midi);
   state.importedFileName = fileName.replace(/\.(mid|midi)$/i, "");
+  state.importedSourceTargets = converted.targets;
+  state.importedOriginalKey = converted.keyValue;
   state.beatsPerMeasure = converted.numerator;
   state.beatValue = converted.denominator;
   state.timeSignature = `${converted.numerator}/${converted.denominator}`;
-  state.nextNotes = [];
-  state.nextKey = null;
   els.rangeSelect.value = "grand";
   els.keySelect.value = converted.keyValue;
-  els.midiFileStatus.textContent = `${fileName} · ${pages.length} score ${pages.length === 1 ? "page" : "pages"}`;
-  setFeedback(`Loaded ${fileName}`, "good");
-  startImportedPage(0);
+  rebuildImportedPages(converted.keyValue, `Loaded ${fileName}`);
 }
 
 async function loadMidiFile(file) {
@@ -636,6 +664,8 @@ function makeRound(options = {}) {
   const usePrepared = options.usePrepared !== false;
 
   state.importedPages = null;
+  state.importedSourceTargets = null;
+  state.importedOriginalKey = "";
   state.importedPageIndex = -1;
   state.importedFileName = "";
   state.beatsPerMeasure = BEATS_PER_MEASURE;
@@ -724,6 +754,11 @@ function startNextRound(options = {}) {
 }
 
 function handleKeyChange() {
+  if (state.importedSourceTargets) {
+    rebuildImportedPages(els.keySelect.value, `Transposed to ${keyName(els.keySelect.value)}`);
+    return;
+  }
+
   resetKeyRoundCounter();
   makeRound({ usePrepared: false });
 }
