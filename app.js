@@ -739,7 +739,7 @@ function vexDurationForBeatValue(beatValue) {
 
 function noteStyleForIndex(index, currentIndex, target) {
   if (target.corrected) {
-    return { fillStyle: "#f0b43c", strokeStyle: "#4d3708" };
+    return { fillStyle: "#177245", strokeStyle: "#177245" };
   }
 
   if (target.missed) {
