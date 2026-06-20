@@ -753,7 +753,18 @@ function toggleDemoMode() {
 }
 
 function handleComputerKey(event) {
-  if (!state.demoMode || event.repeat) return;
+  if (event.repeat) return;
+
+  if (event.code === "Space") {
+    const target = state.notes[state.current];
+    if (!target) return;
+
+    event.preventDefault();
+    targetNotes(target).forEach((note) => handlePlayedNote(note.midi));
+    return;
+  }
+
+  if (!state.demoMode) return;
   const keyIndex = KEYBOARD_KEYS.indexOf(event.key.toLowerCase());
   if (keyIndex === -1) return;
 
