@@ -48,6 +48,7 @@ const state = {
   importedSourceTargets: null,
   importedPageIndex: -1,
   keyValue: "C",
+  totalQuarterNoteBeats: 0,
   activeScore: null,
   performanceStartedAt: null,
   performanceElapsedMs: 0,
@@ -101,9 +102,18 @@ function formatDuration(durationMs) {
   return `${minutes}:${seconds}`;
 }
 
+function formatTempo(tempo) {
+  return Number.isFinite(tempo) ? `${Math.round(tempo)} BPM` : "—";
+}
+
 function currentAccuracy() {
   const attempts = state.correct + state.missed;
   return attempts ? (state.correct / attempts) * 100 : null;
+}
+
+function tempoForDuration(durationMs) {
+  if (!Number.isFinite(durationMs) || durationMs <= 0 || !state.totalQuarterNoteBeats) return null;
+  return state.totalQuarterNoteBeats / (durationMs / 60000);
 }
 
 function updatePerformanceDisplay() {
@@ -149,6 +159,7 @@ function recordCompletedPerformance() {
   stopPerformanceTimer();
 
   const accuracy = currentAccuracy() || 0;
+  const tempo = tempoForDuration(state.performanceElapsedMs) || 0;
   const stats = readPerformanceStats();
   const previous = stats[state.activeScore.id] || { attempts: 0 };
   stats[state.activeScore.id] = {
@@ -157,6 +168,8 @@ function recordCompletedPerformance() {
     bestDurationMs: Math.min(previous.bestDurationMs ?? Infinity, state.performanceElapsedMs),
     lastAccuracy: accuracy,
     bestAccuracy: Math.max(previous.bestAccuracy ?? 0, accuracy),
+    lastTempo: tempo,
+    bestTempo: Math.max(previous.bestTempo ?? 0, tempo),
     lastCorrect: state.correct,
     lastMissed: state.missed,
     completedAt: new Date().toISOString()
@@ -185,6 +198,8 @@ function renderScoreLibrary() {
         <div><dt>Last time</dt><dd>${formatDuration(result?.lastDurationMs)}</dd></div>
         <div><dt>Best accuracy</dt><dd>${result ? `${Math.round(result.bestAccuracy)}%` : "—"}</dd></div>
         <div><dt>Last accuracy</dt><dd>${result ? `${Math.round(result.lastAccuracy)}%` : "—"}</dd></div>
+        <div><dt>Best tempo</dt><dd>${formatTempo(result?.bestTempo)}</dd></div>
+        <div><dt>Last tempo</dt><dd>${formatTempo(result?.lastTempo)}</dd></div>
       </dl>
       <button type="button">Play score</button>
     `;
@@ -443,6 +458,9 @@ function convertMusicXmlToTargets(score) {
   return {
     targets,
     keyValue,
+    measureCount: score.measureCount,
+    numerator: score.numerator,
+    denominator: score.denominator,
     targetsPerMeasure,
     beatValue,
     timeSignature: `${score.numerator}/${score.denominator}`
@@ -493,6 +511,9 @@ function importMusicXml(xmlText, scoreMeta) {
   state.activeScore = scoreMeta;
   state.importedSourceTargets = converted.targets;
   state.keyValue = converted.keyValue;
+  state.totalQuarterNoteBeats = converted.measureCount
+    * converted.numerator
+    * (4 / converted.denominator);
   state.beatsPerMeasure = converted.targetsPerMeasure;
   state.beatValue = converted.beatValue;
   state.timeSignature = converted.timeSignature;

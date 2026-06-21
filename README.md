@@ -20,7 +20,7 @@ Users can also load a local score with **Import MusicXML**.
 
 ## Performance statistics
 
-Timing starts with the first played note and ends when the final target in the piece is completed. Accuracy is calculated as completed note/chord targets divided by completed targets plus incorrect note presses. Completed results are stored in browser `localStorage` and shown in the score library.
+Timing starts with the first played note and ends when the final target in the piece is completed. Accuracy is calculated as completed note/chord targets divided by completed targets plus incorrect note presses. Tempo is calculated in quarter-note BPM from the measure count, time signature, and completion time. Completed results are stored in browser `localStorage` and shown in the score library.
 
 ## Features
 
@@ -29,5 +29,5 @@ Timing starts with the first played note and ends when the final target in the p
 - Automatic page progression
 - Meter, key, voices, chords, rests, ties, and slurs from MusicXML
 - MIDI input selection and octave-exact checking
-- Per-piece best/last completion time and accuracy
+- Per-piece best/last completion time, accuracy, and tempo
 - Optional Space-bar input for testing without a MIDI keyboard
