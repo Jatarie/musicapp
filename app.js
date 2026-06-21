@@ -195,12 +195,14 @@ function renderScoreLibrary() {
 
 function showLibrary() {
   stopPerformanceTimer();
+  document.body.classList.remove("player-active");
   els.playerView.hidden = true;
   els.libraryView.hidden = false;
   renderScoreLibrary();
 }
 
 function showPlayer() {
+  document.body.classList.add("player-active");
   els.libraryView.hidden = true;
   els.playerView.hidden = false;
 }
@@ -501,6 +503,7 @@ function importMusicXml(xmlText, scoreMeta) {
 
 async function loadMusicXmlFile(file) {
   if (!file) return;
+  showPlayer();
   try {
     const title = file.name.replace(/\.(musicxml|xml)$/i, "");
     importMusicXml(await file.text(), {
@@ -1017,7 +1020,8 @@ function handlePlayedNote(midi) {
       return;
     }
     recordCompletedPerformance();
-    setFeedback("Piece complete", "good");
+    showLibrary();
+    return;
   }
 
   updateLabels();

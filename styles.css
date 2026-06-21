@@ -251,6 +251,37 @@ h3 { margin: 0; font-size: 1.25rem; }
 
 .keyboard-hint { color: var(--muted); font-size: 0.9rem; }
 
+body.player-active {
+  overflow: auto;
+  background: #fffdf8;
+}
+
+body.player-active .topbar,
+body.player-active .player-toolbar,
+body.player-active .player-footer {
+  display: none;
+}
+
+body.player-active .app-shell {
+  width: 100%;
+  padding: 0;
+}
+
+body.player-active .player-view {
+  min-height: 100vh;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.player-active .score {
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
+  background: #fffdf8;
+}
+
 @media (max-width: 960px) {
   .topbar, .library-header { align-items: stretch; flex-direction: column; }
   .midi-panel { width: 100%; }
