@@ -12,6 +12,12 @@ const MUSIC_XML_LIBRARY = [
     file: "prelude-in-c-major.xml",
     title: "Prelude in C Major",
     composer: "J. S. Bach"
+  },
+  {
+    id: "moonlight-sonata",
+    file: "moonlight.xml",
+    title: "Moonlight Sonata mv. 1",
+    composer: "Beethoven"
   }
 ];
 const KEYS = {
