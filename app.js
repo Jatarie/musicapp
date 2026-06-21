@@ -131,6 +131,7 @@ const state = {
   importedPageIndex: -1,
   importedFileName: ""
 };
+let renderedTargetNotes = new Map();
 
 const els = {
   workspace: document.querySelector(".workspace"),
@@ -883,6 +884,31 @@ function noteStyleForIndex(index, currentIndex, target) {
   return { fillStyle: "#11191d", strokeStyle: "#11191d" };
 }
 
+function registerRenderedTargetNote(index, staveNote) {
+  const targetNotesAtIndex = renderedTargetNotes.get(index) || [];
+  targetNotesAtIndex.push(staveNote);
+  renderedTargetNotes.set(index, targetNotesAtIndex);
+}
+
+function refreshRenderedTargetStyle(index) {
+  const target = state.notes[index];
+  if (!target) return;
+  const style = noteStyleForIndex(index, state.current, target);
+
+  (renderedTargetNotes.get(index) || []).forEach((staveNote) => {
+    staveNote.setStyle(style);
+    const element = staveNote.getSVGElement?.();
+    if (!element) return;
+
+    element.style.fill = style.fillStyle;
+    element.style.stroke = style.strokeStyle;
+    element.querySelectorAll("path, line, polygon, rect, ellipse").forEach((shape) => {
+      if (shape.getAttribute("fill") !== "none") shape.setAttribute("fill", style.fillStyle);
+      if (shape.getAttribute("stroke") !== "none") shape.setAttribute("stroke", style.strokeStyle);
+    });
+  });
+}
+
 function makeVexTarget(target, index, staff, currentIndex) {
   const VF = window.VexFlow;
   const duration = vexDurationForBeatValue(state.beatValue);
@@ -926,6 +952,7 @@ function makeVexTarget(target, index, staff, currentIndex) {
   });
 
   staveNote.setStyle(noteStyleForIndex(index, currentIndex, target));
+  registerRenderedTargetNote(index, staveNote);
   return staveNote;
 }
 
@@ -1065,6 +1092,7 @@ function makeImportedStaffVoices(
           }
         });
         staveNote.setStyle(noteStyleForIndex(targetOffset + slot, currentIndex, target));
+        registerRenderedTargetNote(targetOffset + slot, staveNote);
       }
       for (let dot = 0; dot < dots; dot += 1) {
         VF.Dot.buildAndAttach([staveNote], { all: true });
@@ -1189,6 +1217,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     container.textContent = "VexFlow failed to load";
     return;
   }
+  renderedTargetNotes = new Map();
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
@@ -1333,7 +1362,8 @@ function pitchClass(midi) {
 }
 
 function handlePlayedNote(midi) {
-  const target = state.notes[state.current];
+  const targetIndex = state.current;
+  const target = state.notes[targetIndex];
   if (!target) return;
 
   const expectedNotes = targetNotes(target);
@@ -1346,8 +1376,6 @@ function handlePlayedNote(midi) {
       const remaining = expectedMidi.filter((noteMidi) => !state.heldMidi.has(noteMidi)).length;
       const label = remaining === 1 ? "note" : "notes";
       setFeedback(`${remaining} ${label} left`, "good");
-      updateLabels();
-      drawScore();
       return;
     }
 
@@ -1365,11 +1393,14 @@ function handlePlayedNote(midi) {
 
   if (state.current >= state.notes.length) {
     setFeedback("Round complete", "good");
+    const completedPage = state.notes;
     startNextRound({ countKeyRound: true });
+    if (state.notes !== completedPage) return;
   }
 
   updateLabels();
-  drawScore();
+  refreshRenderedTargetStyle(targetIndex);
+  if (state.current !== targetIndex) refreshRenderedTargetStyle(state.current);
 }
 
 function midiToName(midi) {
