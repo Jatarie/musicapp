@@ -1160,6 +1160,12 @@ els.restartPiece.addEventListener("click", () => {
 els.demoMode.addEventListener("click", toggleDemoMode);
 document.addEventListener("keydown", handleComputerKey);
 
+window.setInterval(() => {
+  if (navigator.requestMIDIAccess && !hasMidiConnection() && !state.midiConnectPending) {
+    connectMidi();
+  }
+}, 1000);
+
 function initializeNotation() {
   if (!window.VexFlow) {
     setFeedback("VexFlow failed to load", "bad");
