@@ -2,6 +2,7 @@ const SYSTEMS_PER_PAGE = 4;
 const MEASURES_PER_SYSTEM = 2;
 const BEATS_PER_MEASURE = 4;
 const NOTE_SCALE = 1.0;
+const RENDER_SLURS_AND_TIES = false;
 // Keep ledger lines inside the notehead bounds so adjacent notes retain a visible gap.
 const LEDGER_LINE_OVERHANG = 0.00;
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
@@ -49,6 +50,7 @@ const state = {
   midiConnectPending: false,
   beatsPerMeasure: BEATS_PER_MEASURE,
   beatValue: 4,
+  slotsPerQuarter: 1,
   timeSignature: "4/4",
   importedPages: null,
   importedSourceTargets: null,
@@ -243,6 +245,26 @@ function childNumber(element, name, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function greatestCommonDivisor(left, right) {
+  let a = Math.abs(left);
+  let b = Math.abs(right);
+  while (b) [a, b] = [b, a % b];
+  return a || 1;
+}
+
+function leastCommonMultiple(left, right) {
+  return Math.abs(left * right) / greatestCommonDivisor(left, right);
+}
+
+function fractionDenominator(value, maximum = 192) {
+  for (let denominator = 1; denominator <= maximum; denominator += 1) {
+    if (Math.abs((value * denominator) - Math.round(value * denominator)) < 1e-7) {
+      return denominator;
+    }
+  }
+  return maximum;
+}
+
 function readMusicXml(xmlText) {
   const documentNode = new DOMParser().parseFromString(xmlText, "application/xml");
   if (documentNode.querySelector("parsererror")) throw new Error("The MusicXML file is not valid XML");
@@ -297,8 +319,32 @@ function readMusicXml(xmlText) {
         const onset = isChordNote ? previousOnset : cursor;
         const type = directChild(element, "type")?.textContent.trim();
         const voice = directChild(element, "voice")?.textContent.trim() || "1";
+        const stemDirection = directChild(element, "stem")?.textContent.trim() || "";
+        const beams = Array.from(element.children)
+          .filter((child) => child.localName === "beam")
+          .map((beam) => ({
+            number: beam.getAttribute("number") || "1",
+            type: beam.textContent.trim()
+          }));
         const dots = Array.from(element.children).filter((child) => child.localName === "dot").length;
         const notations = directChild(element, "notations");
+        const timeModificationElement = directChild(element, "time-modification");
+        const timeModification = timeModificationElement
+          ? {
+            actualNotes: childNumber(timeModificationElement, "actual-notes", 3),
+            normalNotes: childNumber(timeModificationElement, "normal-notes", 2)
+          }
+          : null;
+        const tuplets = notations
+          ? Array.from(notations.children)
+            .filter((child) => child.localName === "tuplet")
+            .map((tuplet) => ({
+              type: tuplet.getAttribute("type") || "start",
+              number: tuplet.getAttribute("number") || "1",
+              bracketed: tuplet.getAttribute("bracket") !== "no",
+              showNumber: tuplet.getAttribute("show-number") !== "none"
+            }))
+          : [];
         const slurs = notations
           ? Array.from(notations.children)
             .filter((child) => child.localName === "slur")
@@ -339,6 +385,10 @@ function readMusicXml(xmlText) {
             duration,
             type,
             dots,
+            stemDirection,
+            beams,
+            timeModification,
+            tuplets,
             slurs,
             ties
           });
@@ -358,6 +408,10 @@ function readMusicXml(xmlText) {
             duration,
             type,
             dots,
+            stemDirection,
+            beams,
+            timeModification,
+            tuplets,
             displayKey
           });
         }
@@ -375,7 +429,25 @@ function readMusicXml(xmlText) {
     throw new Error(`Unsupported ${numerator}/${denominator} meter`);
   }
 
-  return { events, measureCount, numerator, denominator, sharpsFlats, smallestType };
+  const timingResolution = events.reduce((resolution, event) => (
+    leastCommonMultiple(
+      resolution,
+      leastCommonMultiple(
+        fractionDenominator(event.onset),
+        fractionDenominator(event.duration)
+      )
+    )
+  ), 1);
+
+  return {
+    events,
+    measureCount,
+    numerator,
+    denominator,
+    sharpsFlats,
+    smallestType,
+    timingResolution
+  };
 }
 
 function keyValueForMidiSignature(sharpsFlats) {
@@ -405,14 +477,15 @@ function importedNoteForMusicXml(event, keyValue) {
 function convertMusicXmlToTargets(score) {
   const keyValue = keyValueForMidiSignature(score.sharpsFlats);
   const beatValue = Math.min(16, Math.max(score.denominator, score.smallestType));
-  const targetsPerMeasure = score.numerator * (beatValue / score.denominator);
+  const slotsPerQuarter = leastCommonMultiple(beatValue / 4, score.timingResolution);
+  const targetsPerMeasure = score.numerator * (4 / score.denominator) * slotsPerQuarter;
   if (!Number.isInteger(targetsPerMeasure)) {
     throw new Error("The MusicXML meter cannot be represented by the supported note grid");
   }
 
   const eventsBySlot = new Map();
   score.events.forEach((event) => {
-    const slotInMeasure = Math.round(event.onset * (beatValue / 4));
+    const slotInMeasure = Math.round(event.onset * slotsPerQuarter);
     if (slotInMeasure < 0 || slotInMeasure >= targetsPerMeasure) return;
     const slot = (event.measureIndex * targetsPerMeasure) + slotInMeasure;
     const values = eventsBySlot.get(slot) || [];
@@ -435,6 +508,10 @@ function convertMusicXmlToTargets(score) {
       duration: event.duration,
       type: event.type,
       dots: event.dots,
+      stemDirection: event.stemDirection,
+      beams: event.beams,
+      timeModification: event.timeModification,
+      tuplets: event.tuplets,
       displayKey: event.displayKey
     }));
     if (!uniqueEvents.length) {
@@ -451,6 +528,10 @@ function convertMusicXmlToTargets(score) {
         duration: event.duration,
         type: event.type,
         dots: event.dots,
+        stemDirection: event.stemDirection,
+        beams: event.beams,
+        timeModification: event.timeModification,
+        tuplets: event.tuplets,
         slurs: event.slurs,
         ties: event.ties
       }))
@@ -469,6 +550,7 @@ function convertMusicXmlToTargets(score) {
     denominator: score.denominator,
     targetsPerMeasure,
     beatValue,
+    slotsPerQuarter,
     timeSignature: `${score.numerator}/${score.denominator}`
   };
 }
@@ -522,6 +604,7 @@ function importMusicXml(xmlText, scoreMeta) {
     * (4 / converted.denominator);
   state.beatsPerMeasure = converted.targetsPerMeasure;
   state.beatValue = converted.beatValue;
+  state.slotsPerQuarter = converted.slotsPerQuarter;
   state.timeSignature = converted.timeSignature;
   els.pieceTitle.textContent = scoreMeta.title;
   showPlayer();
@@ -625,12 +708,12 @@ function vexDurationForMusicXmlType(type) {
     || vexDurationForBeatValue(state.beatValue);
 }
 
-function accidentalDisplayForSystem(systemTargets, keyValue) {
+function accidentalDisplayForMeasure(measureTargets, keyValue) {
   const displays = new WeakMap();
   const activeAccidentals = new Map();
   const key = KEYS[keyValue] || KEYS.C;
 
-  systemTargets.forEach((target) => {
+  measureTargets.forEach((target) => {
     targetNotes(target).forEach((note) => {
       const keyAccidental = key.steps.includes(note.step)
         ? (key.type === "sharp" ? "#" : "b")
@@ -654,6 +737,97 @@ function accidentalDisplayForSystem(systemTargets, keyValue) {
   return displays;
 }
 
+function groupCandidatesByVoice(candidates) {
+  const groups = new Map();
+  candidates.forEach((candidate) => {
+    const group = groups.get(candidate.voiceId) || [];
+    group.push(candidate);
+    groups.set(candidate.voiceId, group);
+  });
+  return groups;
+}
+
+function makeTuplets(tupletCandidates) {
+  const VF = window.VexFlow;
+  const tuplets = [];
+  const candidatesByVoice = groupCandidatesByVoice(tupletCandidates);
+
+  candidatesByVoice.forEach((voiceCandidates) => {
+    let group = [];
+    let ratioKey = "";
+
+    const finishGroup = () => {
+      if (!group.length) return;
+      const { actualNotes, normalNotes } = group[0].event.timeModification;
+      if (group.length === actualNotes) {
+        const start = group
+          .flatMap(({ event }) => event.tuplets || [])
+          .find((tuplet) => tuplet.type === "start");
+        const tuplet = new VF.Tuplet(group.map(({ staveNote }) => staveNote), {
+          numNotes: actualNotes,
+          notesOccupied: normalNotes,
+          bracketed: start?.bracketed ?? false
+        });
+        if (start?.showNumber === false) tuplet.textElement.setText("");
+        tuplets.push(tuplet);
+      }
+      group = [];
+      ratioKey = "";
+    };
+
+    voiceCandidates
+      .sort((left, right) => left.slot - right.slot)
+      .forEach((candidate) => {
+        const modification = candidate.event.timeModification;
+        if (!modification) {
+          finishGroup();
+          return;
+        }
+
+        const candidateRatio = `${modification.actualNotes}:${modification.normalNotes}`;
+        if (ratioKey && candidateRatio !== ratioKey) finishGroup();
+        ratioKey = candidateRatio;
+        group.push(candidate);
+        if (group.length === modification.actualNotes) finishGroup();
+      });
+    finishGroup();
+  });
+  return tuplets;
+}
+
+function makeMusicXmlBeams(beamCandidates) {
+  const VF = window.VexFlow;
+  const beams = [];
+  const candidatesByVoice = groupCandidatesByVoice(beamCandidates);
+
+  candidatesByVoice.forEach((voiceCandidates) => {
+    let group = [];
+    const finishGroup = () => {
+      if (group.length > 1) {
+        const beam = new VF.Beam(group.map(({ staveNote }) => staveNote));
+        beams.push(beam);
+      }
+      group = [];
+    };
+
+    voiceCandidates
+      .sort((left, right) => left.slot - right.slot)
+      .forEach((candidate) => {
+        const primaryBeam = (candidate.event.beams || [])
+          .find((beam) => beam.number === "1");
+        if (!primaryBeam) {
+          finishGroup();
+          return;
+        }
+        if (primaryBeam.type === "begin") finishGroup();
+        group.push(candidate);
+        if (primaryBeam.type === "end") finishGroup();
+      });
+    finishGroup();
+  });
+  return beams;
+}
+
 function makeImportedStaffVoices(
   measureTargets,
   targetOffset,
@@ -674,36 +848,49 @@ function makeImportedStaffVoices(
       .filter((rest) => rest.staff === staff)
       .forEach((rest) => voicesInMeasure.add(rest.voice));
   });
-  if (!voicesInMeasure.size) voicesInMeasure.add("1");
+  if (!voicesInMeasure.size) voicesInMeasure.add("__ghost");
 
   return [...voicesInMeasure].map((voiceId) => {
     const staveNotes = [];
+    const notationCandidates = [];
     let slot = 0;
 
-    while (slot < measureTargets.length) {
-      const target = measureTargets[slot];
+    const eventAtSlot = (targetSlot) => {
+      const target = measureTargets[targetSlot];
       const notes = targetNotes(target)
         .filter((note) => note.staff === staff && note.voice === voiceId)
         .sort((a, b) => a.midi - b.midi);
       const rest = (target?.notationRests || [])
         .find((event) => event.staff === staff && event.voice === voiceId);
-      const event = notes[0] || rest;
+      return { target, notes, rest, event: notes[0] || rest };
+    };
+
+    while (slot < measureTargets.length) {
+      const { target, notes, rest, event } = eventAtSlot(slot);
 
       if (!event) {
-        staveNotes.push(new VF.GhostNote(vexDurationForBeatValue(state.beatValue)));
-        slot += 1;
+        let gapEnd = slot + 1;
+        while (gapEnd < measureTargets.length && !eventAtSlot(gapEnd).event) gapEnd += 1;
+        const ghostNote = new VF.GhostNote("q");
+        ghostNote.setDuration(new VF.Fraction(gapEnd - slot, state.slotsPerQuarter * 4));
+        staveNotes.push(ghostNote);
+        slot = gapEnd;
         continue;
       }
 
       const dots = event.dots || 0;
       const duration = `${vexDurationForMusicXmlType(event.type)}${"d".repeat(dots)}${rest ? "r" : ""}`;
+      const stemDirection = event.stemDirection === "down"
+        ? VF.Stem.DOWN
+        : event.stemDirection === "up" ? VF.Stem.UP : null;
       const staveNote = makeStaveNote({
         clef: staff,
         keys: rest
           ? [rest.displayKey || (staff === "bass" ? "d/3" : "b/4")]
           : notes.map(vexKey),
         duration,
-        autoStem: true,
+        autoStem: stemDirection === null,
+        ...(stemDirection === null ? {} : { stemDirection }),
         strokePx: LEDGER_LINE_OVERHANG
       });
 
@@ -729,22 +916,16 @@ function makeImportedStaffVoices(
         VF.Dot.buildAndAttach([staveNote], { all: true });
       }
       staveNotes.push(staveNote);
+      notationCandidates.push({ staveNote, event, slot, voiceId, staff });
 
-      const durationSlots = Math.max(1, Math.round((event.duration || (4 / state.beatValue)) * state.beatValue / 4));
+      const durationSlots = Math.max(
+        1,
+        Math.round((event.duration || (1 / state.slotsPerQuarter)) * state.slotsPerQuarter)
+      );
       slot += durationSlots;
     }
 
-    const [numerator, denominator] = state.timeSignature.split("/").map(Number);
-    const beamGroup = denominator === 8 && numerator > 3 && numerator % 3 === 0
-      ? new VF.Fraction(3, 8)
-      : new VF.Fraction(1, denominator);
-    const beams = VF.Beam.generateBeams(staveNotes, { groups: [beamGroup] });
-    beams.forEach((beam) => beam.getNotes().forEach((note) => note.setStemLength(45)));
-    const voice = new VF.Voice({ num_beats: state.beatsPerMeasure, beat_value: state.beatValue })
-      .setStrict(false)
-      .addTickables(staveNotes);
-
-    return { voice, stave, beams, staff };
+    return { stave, staveNotes, notationCandidates, staff };
   });
 }
 
@@ -893,12 +1074,6 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
     const bassY = trebleY + 110;
     const symbolWidth = startingSymbolWidth(systemIndex === 0);
     const noteSpaceWidth = (systemWidth - symbolWidth) / MEASURES_PER_SYSTEM;
-    const systemTargetOffset = systemIndex * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
-    const systemTargets = notes.slice(
-      systemTargetOffset,
-      systemTargetOffset + (MEASURES_PER_SYSTEM * state.beatsPerMeasure)
-    );
-    const accidentalDisplays = accidentalDisplayForSystem(systemTargets, keyValue);
     let measureX = pageMargin;
 
     for (let measureIndex = 0; measureIndex < MEASURES_PER_SYSTEM; measureIndex += 1) {
@@ -916,6 +1091,7 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
       const measureNumber = (systemIndex * MEASURES_PER_SYSTEM) + measureIndex;
       const targetOffset = measureNumber * state.beatsPerMeasure;
       const measureTargets = notes.slice(targetOffset, targetOffset + state.beatsPerMeasure);
+      const accidentalDisplays = accidentalDisplayForMeasure(measureTargets, keyValue);
       const staves = [
         { clef: "treble", stave: trebleStave },
         { clef: "bass", stave: bassStave }
@@ -932,6 +1108,14 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
           accidentalDisplays
         )
       ));
+      const notationCandidates = voices.flatMap(({ notationCandidates: candidates }) => candidates);
+      const tuplets = makeTuplets(notationCandidates);
+      const [voiceBeats, voiceBeatValue] = state.timeSignature.split("/").map(Number);
+      voices.forEach((entry) => {
+        entry.voice = new VF.Voice({ num_beats: voiceBeats, beat_value: voiceBeatValue })
+          .setStrict(false)
+          .addTickables(entry.staveNotes);
+      });
       const vexVoices = voices.map(({ voice }) => voice);
       const noteAreaWidth = Math.min(
         ...staves.map(({ stave }) => stave.getNoteEndX() - stave.getNoteStartX())
@@ -942,16 +1126,24 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
         formatter.joinVoices(voices.filter(({ staff }) => staff === clef).map(({ voice }) => voice));
       });
       formatter.format(vexVoices, noteAreaWidth);
-      voices.forEach(({ voice, stave, beams }) => {
-        voice.draw(context, stave);
-        beams.forEach((beam) => beam.setContext(context).draw());
+      notationCandidates.forEach(({ staveNote, event }) => {
+        if (event.stemDirection === "up") staveNote.setStemDirection(VF.Stem.UP);
+        if (event.stemDirection === "down") staveNote.setStemDirection(VF.Stem.DOWN);
       });
+      const beams = makeMusicXmlBeams(notationCandidates);
+      voices.forEach(({ voice, stave }) => {
+        voice.draw(context, stave);
+      });
+      beams.forEach((beam) => beam.setContext(context).draw());
+      tuplets.forEach((tuplet) => tuplet.setContext(context).draw());
 
       measureX += measureWidth;
     }
   }
 
-  if (state.importedPages) drawMusicXmlCurves(context, notationEndpoints);
+  if (state.importedPages && RENDER_SLURS_AND_TIES) {
+    drawMusicXmlCurves(context, notationEndpoints);
+  }
 }
 
 function drawScore() {

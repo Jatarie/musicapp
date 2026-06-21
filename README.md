@@ -27,7 +27,7 @@ Timing starts with the first played note and ends when the final target in the p
 - MusicXML score library and local MusicXML import
 - Four systems of two measures per page
 - Automatic page progression
-- Meter, key, voices, chords, rests, ties, and slurs from MusicXML
+- Meter, key, voices, chords, rests, triplets, cross-staff beams, ties, and slurs from MusicXML
 - MIDI input selection and octave-exact checking
 - Per-piece best/last completion time, accuracy, and tempo
 - Optional Space-bar input for testing without a MIDI keyboard
