@@ -1211,17 +1211,18 @@ function addStaveConnectors(context, trebleStave, bassStave, isSystemStart) {
   });
 }
 
-function drawVexScore(container, notes, currentIndex, keyValue) {
+function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
   const VF = window.VexFlow;
   if (!VF) {
     container.textContent = "VexFlow failed to load";
     return;
   }
   renderedTargetNotes = new Map();
+  const systemCount = options.systemCount || SYSTEMS_PER_ROUND;
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
-  const height = 1280;
+  const height = systemCount === 1 ? 290 : 1280;
   const pageMargin = 18;
   const systemWidth = width - (pageMargin * 2);
 
@@ -1256,7 +1257,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     return decoratedStave.getNoteStartX() - plainStave.getNoteStartX();
   }));
 
-  for (let systemIndex = 0; systemIndex < SYSTEMS_PER_ROUND; systemIndex += 1) {
+  for (let systemIndex = 0; systemIndex < systemCount; systemIndex += 1) {
     const trebleY = 74 + (systemIndex * systemSpacing);
     const bassY = trebleY + 110;
     const symbolWidth = startingSymbolWidth(systemIndex === 0);
@@ -1336,6 +1337,45 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
 
 function drawScore() {
   drawVexScore(els.score, state.notes, state.current, els.keySelect.value);
+  updateNextSystemPreview();
+}
+
+function nextSystemPreviewData() {
+  const previewTargetCount = MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  if (state.importedPages) {
+    const nextPage = state.importedPages[state.importedPageIndex + 1];
+    return nextPage
+      ? { notes: nextPage.slice(0, previewTargetCount), keyValue: els.keySelect.value }
+      : null;
+  }
+
+  return state.nextNotes.length
+    ? { notes: state.nextNotes.slice(0, previewTargetCount), keyValue: state.nextKey }
+    : null;
+}
+
+function updateNextSystemPreview() {
+  const existingPreview = els.score.querySelector(".next-system-preview");
+  const finalSystemStart = (SYSTEMS_PER_ROUND - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  const previewData = state.current >= finalSystemStart ? nextSystemPreviewData() : null;
+
+  if (!previewData) {
+    existingPreview?.remove();
+    return;
+  }
+  if (existingPreview) return;
+
+  const preview = document.createElement("div");
+  preview.className = "next-system-preview";
+  preview.setAttribute("aria-label", "First system of the next round");
+  els.score.append(preview);
+
+  const currentRenderedTargets = renderedTargetNotes;
+  try {
+    drawVexScore(preview, previewData.notes, -1, previewData.keyValue, { systemCount: 1 });
+  } finally {
+    renderedTargetNotes = currentRenderedTargets;
+  }
 }
 
 function updateLabels() {
@@ -1401,6 +1441,7 @@ function handlePlayedNote(midi) {
   updateLabels();
   refreshRenderedTargetStyle(targetIndex);
   if (state.current !== targetIndex) refreshRenderedTargetStyle(state.current);
+  updateNextSystemPreview();
 }
 
 function midiToName(midi) {
