@@ -194,14 +194,14 @@ function renderScoreLibrary() {
   MUSIC_XML_LIBRARY.forEach((score) => {
     const result = stats[score.id];
     const card = document.createElement("article");
-    card.className = "score-card grid grid-cols-[minmax(220px,1.1fr)_minmax(620px,2.4fr)_auto] items-center gap-6 rounded-[10px] border border-[#d7e0e4] bg-[#fbfdfd] p-5 max-[960px]:grid-cols-1";
+    card.className = "score-card grid gap-4 border border-slate-200 p-4 lg:grid-cols-[1fr_2fr_auto] lg:items-center";
     card.innerHTML = `
       <div class="score-card-main">
-        <p class="mt-0 mb-1 block text-[0.82rem] font-bold text-[#60717c]">${score.composer || "MusicXML score"}</p>
-        <h3 class="m-0 text-xl font-bold">${score.title}</h3>
-        <span class="mt-1.5 mb-0 block text-[0.82rem] font-medium text-[#60717c]">${score.file}</span>
+        <p class="text-sm text-slate-500">${score.composer || "MusicXML score"}</p>
+        <h3 class="m-0 text-xl">${score.title}</h3>
+        <span class="mt-1 block text-sm text-slate-500">${score.file}</span>
       </div>
-      <dl class="score-results m-0 grid grid-cols-7 gap-3 max-[960px]:grid-cols-3 max-[620px]:grid-cols-2 [&>div]:min-w-0 [&_dt]:text-[0.72rem] [&_dt]:font-bold [&_dt]:text-[#60717c] [&_dd]:mt-[3px] [&_dd]:mb-0 [&_dd]:text-base [&_dd]:font-extrabold">
+      <dl class="score-results grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7 [&_dt]:text-xs [&_dt]:text-slate-500 ">
         <div><dt>Attempts</dt><dd>${result?.attempts || 0}</dd></div>
         <div><dt>Best time</dt><dd>${formatDuration(result?.bestDurationMs)}</dd></div>
         <div><dt>Last time</dt><dd>${formatDuration(result?.lastDurationMs)}</dd></div>
@@ -210,7 +210,7 @@ function renderScoreLibrary() {
         <div><dt>Best tempo</dt><dd>${formatTempo(result?.bestTempo)}</dd></div>
         <div><dt>Last tempo</dt><dd>${formatTempo(result?.lastTempo)}</dd></div>
       </dl>
-      <button class="min-h-10 cursor-pointer rounded-lg border-0 bg-[#0f7f78] px-4 font-bold text-white hover:bg-[#095f5b] max-[960px]:justify-self-start" type="button">Play score</button>
+      <button class="justify-self-start bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button">Play score</button>
     `;
     card.querySelector("button").addEventListener("click", () => loadLibraryScore(score));
     els.scoreLibrary.append(card);
@@ -1178,7 +1178,7 @@ function updateNextSystemPreview() {
   if (existingPreview) return;
 
   const preview = document.createElement("div");
-  preview.className = "next-system-preview pointer-events-none absolute top-0 left-0 z-2 h-[290px] w-full min-w-[760px] overflow-hidden border-b-2 border-[#0f7f78] bg-[#fffdf8] shadow-[0_8px_18px_rgb(17_25_29/12%)] after:absolute after:top-2.5 after:right-3.5 after:rounded-full after:bg-[#0f7f78] after:px-2 after:py-1 after:text-[0.72rem] after:font-extrabold after:text-white after:uppercase after:content-['Next_page']";
+  preview.className = "next-system-preview pointer-events-none absolute inset-x-0 top-0 z-2 h-[290px] min-w-3xl overflow-hidden border-b-2 border-teal-700 bg-white after:absolute after:top-2 after:right-2 after:bg-teal-700 after:px-2 after:py-1 after:text-xs after:text-white after:content-['Next_page']";
   preview.setAttribute("aria-label", "First system of the next page");
   els.score.append(preview);
 
