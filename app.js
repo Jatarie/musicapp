@@ -14,7 +14,7 @@ const MUSIC_XML_LIBRARY = [
     composer: "J. S. Bach"
   },
   {
-    id: "moonlight-sonata",
+    id: "moonlight",
     file: "moonlight.xml",
     title: "Moonlight Sonata mv. 1",
     composer: "Beethoven"
