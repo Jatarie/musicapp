@@ -111,6 +111,7 @@ const KEYS = {
 const state = {
   midiAccess: null,
   midiInput: null,
+  heldMidi: new Set(),
   notes: [],
   nextNotes: [],
   nextKey: null,
@@ -970,14 +971,9 @@ function handlePlayedNote(midi) {
   const isExpected = expectedMidi.includes(midi);
 
   if (isExpected) {
-    target.playedMidi = target.playedMidi || [];
-    if (!target.playedMidi.includes(midi)) {
-      target.playedMidi.push(midi);
-    }
-
-    const isComplete = expectedMidi.every((noteMidi) => target.playedMidi.includes(noteMidi));
+    const isComplete = expectedMidi.every((noteMidi) => state.heldMidi.has(noteMidi));
     if (!isComplete) {
-      const remaining = expectedMidi.length - target.playedMidi.length;
+      const remaining = expectedMidi.filter((noteMidi) => !state.heldMidi.has(noteMidi)).length;
       const label = remaining === 1 ? "note" : "notes";
       setFeedback(`${remaining} ${label} left`, "good");
       updateLabels();
@@ -1015,7 +1011,10 @@ function onMidiMessage(event) {
   const [status, note, velocity] = event.data;
   const command = status & 0xf0;
   if (command === 0x90 && velocity > 0) {
+    state.heldMidi.add(note);
     handlePlayedNote(note);
+  } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+    state.heldMidi.delete(note);
   }
 }
 
@@ -1076,6 +1075,7 @@ function selectMidiInput() {
   if (state.midiInput) {
     state.midiInput.onmidimessage = null;
   }
+  state.heldMidi.clear();
 
   const inputId = els.midiInputs.value;
   const inputs = Array.from(state.midiAccess.inputs.values()).filter((input) => input.state !== "disconnected");
@@ -1112,7 +1112,10 @@ function handleComputerKey(event) {
     if (!target) return;
 
     event.preventDefault();
-    targetNotes(target).forEach((note) => handlePlayedNote(note.midi));
+    const notes = targetNotes(target);
+    notes.forEach((note) => state.heldMidi.add(note.midi));
+    handlePlayedNote(notes[notes.length - 1].midi);
+    notes.forEach((note) => state.heldMidi.delete(note.midi));
     return;
   }
 
@@ -1128,7 +1131,9 @@ function handleComputerKey(event) {
   const mappedNote = pool[start + keyIndex];
 
   if (mappedNote) {
+    state.heldMidi.add(mappedNote.midi);
     handlePlayedNote(mappedNote.midi);
+    state.heldMidi.delete(mappedNote.midi);
   }
 }
 
