@@ -8,10 +8,10 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="topbar" aria-label="Application controls">
+      <header class="topbar">
         <div>
-          <p class="eyebrow">Sight-reading trainer</p>
-          <h1>Sightline Music Reader</h1>
+          <p class="eyebrow">MusicXML practice library</p>
+          <h1>Sightline</h1>
         </div>
         <div class="midi-panel">
           <div class="status-pill" id="midiStatus">MIDI disconnected</div>
@@ -20,169 +20,44 @@
           </select>
           <button id="connectMidi" type="button">Connect MIDI</button>
         </div>
+      </header>
+
+      <section class="library-view" id="libraryView" aria-labelledby="libraryTitle">
+        <div class="library-header">
+          <div>
+            <p class="eyebrow">Choose a score</p>
+            <h2 id="libraryTitle">Music library</h2>
+            <p class="library-intro">Select a piece to begin. Results are saved in this browser.</p>
+          </div>
+          <div>
+            <button class="secondary" id="importScore" type="button">Import MusicXML</button>
+            <input id="musicXmlFile" type="file" hidden accept=".xml,.musicxml,application/vnd.recordare.musicxml+xml,application/xml,text/xml">
+          </div>
+        </div>
+        <div class="score-library" id="scoreLibrary"></div>
       </section>
 
-      <section class="workspace">
-        <aside class="controls" id="settingsPanel" aria-label="Exercise settings">
-          <div class="controls-header">
-            <h2>Settings</h2>
-            <button
-              class="panel-toggle"
-              id="toggleControls"
-              type="button"
-              aria-expanded="true"
-              aria-controls="settingsContent"
-            >
-              Minimise
-            </button>
+      <section class="player-view" id="playerView" hidden aria-label="Score player">
+        <div class="player-toolbar">
+          <button class="secondary" id="backToLibrary" type="button">← Library</button>
+          <div class="player-title">
+            <p id="pageLabel">Page 1</p>
+            <h2 id="pieceTitle">Score</h2>
           </div>
+          <div class="live-stats" aria-label="Current performance statistics">
+            <span><strong id="timerValue">0:00</strong> Time</span>
+            <span><strong id="accuracyValue">—</strong> Accuracy</span>
+          </div>
+          <div class="feedback" id="feedback">Play the highlighted note</div>
+        </div>
 
-          <div class="controls-content" id="settingsContent">
-          <div class="control-group">
-            <label for="rangeSelect">Range</label>
-            <select id="rangeSelect">
-              <option value="treble">Treble staff</option>
-              <option value="bass">Bass staff</option>
-              <option value="grand">Grand staff</option>
-            </select>
-          </div>
+        <div id="score" class="score" role="img" aria-label="MusicXML score"></div>
 
-          <div class="control-group">
-            <label for="keySelect">Key</label>
-            <select id="keySelect">
-              <option value="C" selected>C major</option>
-              <option value="G">G major</option>
-              <option value="D">D major</option>
-              <option value="A">A major</option>
-              <option value="E">E major</option>
-              <option value="B">B major</option>
-              <option value="F#">F-sharp major</option>
-              <option value="C#">C-sharp major</option>
-              <option value="F">F major</option>
-              <option value="Bb">B-flat major</option>
-              <option value="Eb">E-flat major</option>
-              <option value="Ab">A-flat major</option>
-              <option value="Db">D-flat major</option>
-              <option value="Gb">G-flat major</option>
-              <option value="Cb">C-flat major</option>
-            </select>
-          </div>
-
-          <div class="control-group musicxml-import">
-            <label for="musicXmlFile">Import MusicXML piece</label>
-            <input id="musicXmlFile" type="file" accept=".xml,.musicxml,application/vnd.recordare.musicxml+xml,application/xml,text/xml">
-            <button id="loadIncludedMusicXml" class="secondary" type="button">Load included Prelude in C</button>
-            <div class="countdown" id="musicXmlFileStatus">Generated exercises</div>
-          </div>
-
-          <div class="control-group">
-            <label for="keyIntervalSelect">Change key</label>
-            <select id="keyIntervalSelect">
-              <option value="0" selected>Off</option>
-              <option value="1">Every 1 round</option>
-              <option value="2">Every 2 rounds</option>
-              <option value="5">Every 5 rounds</option>
-              <option value="10">Every 10 rounds</option>
-            </select>
-            <div class="countdown" id="keyCountdown">Key changes off</div>
-          </div>
-
-          <div class="control-group">
-            <label for="accidentalsSelect">Extra accidentals</label>
-            <select id="accidentalsSelect">
-              <option value="none">Key notes only</option>
-              <option value="some">Add chromatic notes</option>
-            </select>
-          </div>
-
-          <div class="control-group">
-            <label for="distanceSelect">Melodic distance</label>
-            <select id="distanceSelect">
-              <option value="any">Any distance</option>
-              <option value="1">Stepwise</option>
-              <option value="2">Up to a skip</option>
-              <option value="3" selected>Up to a fourth</option>
-              <option value="4">Up to a fifth</option>
-              <option value="7">Up to an octave</option>
-            </select>
-          </div>
-
-          <fieldset class="control-group harmonic-controls">
-            <legend>Harmonic notes</legend>
-            <div class="toggle-row">
-              <input id="harmonicEnabled" type="checkbox">
-              <label for="harmonicEnabled">Include intervals/chords</label>
-            </div>
-            <label for="harmonicDistanceSelect">Maximum interval distance</label>
-            <select id="harmonicDistanceSelect">
-              <option value="2">Up to a third</option>
-              <option value="3">Up to a fourth</option>
-              <option value="4" selected>Up to a fifth</option>
-              <option value="5">Up to a sixth</option>
-              <option value="7">Up to an octave</option>
-              <option value="9">Up to a tenth</option>
-            </select>
-            <label for="harmonicChanceSelect">Chance to appear</label>
-            <select id="harmonicChanceSelect">
-              <option value="10">10%</option>
-              <option value="25" selected>25%</option>
-              <option value="50">50%</option>
-              <option value="75">75%</option>
-              <option value="100">100%</option>
-            </select>
-            <label for="chordSizeSelect">Notes in chord</label>
-            <select id="chordSizeSelect">
-              <option value="2" selected>2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-            </select>
-          </fieldset>
-
-          <div class="actions">
-            <button id="newRound" type="button">New round</button>
-            <button id="demoMode" type="button">Use computer keys</button>
-          </div>
-
-          <div class="stats" aria-label="Practice statistics">
-            <div>
-              <span id="scoreValue">0</span>
-              <small>Correct</small>
-            </div>
-            <div>
-              <span id="missValue">0</span>
-              <small>Missed</small>
-            </div>
-            <div>
-              <span id="streakValue">0</span>
-              <small>Streak</small>
-            </div>
-          </div>
-          </div>
-        </aside>
-
-        <section class="score-stage" aria-label="Sheet music exercise">
-          <div class="score-header">
-            <button
-              class="panel-toggle show-controls"
-              id="showControls"
-              type="button"
-              aria-expanded="false"
-              aria-controls="settingsContent"
-              hidden
-            >
-              Settings
-            </button>
-            <div>
-              <p id="roundLabel">Round 1</p>
-              <h2 id="targetLabel">Play the highlighted note</h2>
-            </div>
-            <div class="feedback" id="feedback">Waiting for input</div>
-          </div>
-          <div id="score" class="score" role="img" aria-label="Generated sight-reading score"></div>
-          <div class="keyboard-hint" id="keyboardHint" hidden>
-            Computer keys: A S D F G H J K map upward through the current exercise.
-          </div>
-        </section>
+        <div class="player-footer">
+          <button class="secondary" id="restartPiece" type="button">Restart piece</button>
+          <button class="secondary" id="demoMode" type="button">Use computer keys</button>
+          <span class="keyboard-hint" id="keyboardHint" hidden>Press Space to play the highlighted note or chord.</span>
+        </div>
       </section>
     </main>
 

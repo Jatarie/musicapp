@@ -1,98 +1,19 @@
-const NOTES = [
-  { midi: 26, step: "D", octave: 1 },
-  { midi: 28, step: "E", octave: 1 },
-  { midi: 29, step: "F", octave: 1 },
-  { midi: 31, step: "G", octave: 1 },
-  { midi: 33, step: "A", octave: 1 },
-  { midi: 35, step: "B", octave: 1 },
-  { midi: 36, step: "C", octave: 2 },
-  { midi: 38, step: "D", octave: 2 },
-  { midi: 40, step: "E", octave: 2 },
-  { midi: 41, step: "F", octave: 2 },
-  { midi: 43, step: "G", octave: 2 },
-  { midi: 45, step: "A", octave: 2 },
-  { midi: 47, step: "B", octave: 2 },
-  { midi: 48, step: "C", octave: 3 },
-  { midi: 50, step: "D", octave: 3 },
-  { midi: 52, step: "E", octave: 3 },
-  { midi: 53, step: "F", octave: 3 },
-  { midi: 55, step: "G", octave: 3 },
-  { midi: 57, step: "A", octave: 3 },
-  { midi: 59, step: "B", octave: 3 },
-  { midi: 60, step: "C", octave: 4 },
-  { midi: 62, step: "D", octave: 4 },
-  { midi: 64, step: "E", octave: 4 },
-  { midi: 65, step: "F", octave: 4 },
-  { midi: 67, step: "G", octave: 4 },
-  { midi: 69, step: "A", octave: 4 },
-  { midi: 71, step: "B", octave: 4 },
-  { midi: 72, step: "C", octave: 5 },
-  { midi: 74, step: "D", octave: 5 },
-  { midi: 76, step: "E", octave: 5 },
-  { midi: 77, step: "F", octave: 5 },
-  { midi: 79, step: "G", octave: 5 },
-  { midi: 81, step: "A", octave: 5 },
-  { midi: 83, step: "B", octave: 5 },
-  { midi: 84, step: "C", octave: 6 },
-  { midi: 86, step: "D", octave: 6 },
-  { midi: 88, step: "E", octave: 6 },
-  { midi: 89, step: "F", octave: 6 },
-  { midi: 91, step: "G", octave: 6 },
-  { midi: 93, step: "A", octave: 6 },
-  { midi: 95, step: "B", octave: 6 }
-];
-
-const ACCIDENTALS = [
-  { midi: 27, step: "D", octave: 1, accidental: "#" },
-  { midi: 30, step: "F", octave: 1, accidental: "#" },
-  { midi: 32, step: "G", octave: 1, accidental: "#" },
-  { midi: 34, step: "A", octave: 1, accidental: "#" },
-  { midi: 37, step: "C", octave: 2, accidental: "#" },
-  { midi: 39, step: "D", octave: 2, accidental: "#" },
-  { midi: 42, step: "F", octave: 2, accidental: "#" },
-  { midi: 44, step: "G", octave: 2, accidental: "#" },
-  { midi: 46, step: "A", octave: 2, accidental: "#" },
-  { midi: 49, step: "C", octave: 3, accidental: "#" },
-  { midi: 51, step: "D", octave: 3, accidental: "#" },
-  { midi: 54, step: "F", octave: 3, accidental: "#" },
-  { midi: 56, step: "G", octave: 3, accidental: "#" },
-  { midi: 58, step: "A", octave: 3, accidental: "#" },
-  { midi: 61, step: "C", octave: 4, accidental: "#" },
-  { midi: 63, step: "D", octave: 4, accidental: "#" },
-  { midi: 66, step: "F", octave: 4, accidental: "#" },
-  { midi: 68, step: "G", octave: 4, accidental: "#" },
-  { midi: 70, step: "A", octave: 4, accidental: "#" },
-  { midi: 73, step: "C", octave: 5, accidental: "#" },
-  { midi: 75, step: "D", octave: 5, accidental: "#" },
-  { midi: 78, step: "F", octave: 5, accidental: "#" },
-  { midi: 80, step: "G", octave: 5, accidental: "#" },
-  { midi: 82, step: "A", octave: 5, accidental: "#" },
-  { midi: 85, step: "C", octave: 6, accidental: "#" },
-  { midi: 87, step: "D", octave: 6, accidental: "#" },
-  { midi: 90, step: "F", octave: 6, accidental: "#" },
-  { midi: 92, step: "G", octave: 6, accidental: "#" },
-  { midi: 94, step: "A", octave: 6, accidental: "#" }
-];
-
-const STEP_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-const KEYBOARD_KEYS = ["a", "s", "d", "f", "g", "h", "j", "k"];
-const FOURTHS_KEY_SEQUENCE = ["C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D", "G"];
-const STAFF_RANGES = {
-  treble: { min: 47, max: 95 },
-  bass: { min: 26, max: 74 }
-};
-const SYSTEMS_PER_ROUND = 4;
+const SYSTEMS_PER_PAGE = 4;
 const MEASURES_PER_SYSTEM = 2;
 const BEATS_PER_MEASURE = 4;
 const NOTE_SCALE = 1.0;
 // Keep ledger lines inside the notehead bounds so adjacent notes retain a visible gap.
 const LEDGER_LINE_OVERHANG = 0.00;
-const TARGETS_PER_ROUND = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * BEATS_PER_MEASURE;
-const INCLUDED_MUSICXML_FILE = "prelude-in-c-major.xml";
-const KEY_TONICS = {
-  C: 0, "C#": 1, Db: 1, D: 2, Eb: 3, E: 4, F: 5, "F#": 6,
-  Gb: 6, G: 7, Ab: 8, A: 9, Bb: 10, B: 11, Cb: 11
-};
+const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
+// Static sites cannot enumerate their directory, so repository scores are declared here.
+const MUSIC_XML_LIBRARY = [
+  {
+    id: "prelude-in-c-major",
+    file: "prelude-in-c-major.xml",
+    title: "Prelude in C Major",
+    composer: "J. S. Bach"
+  }
+];
 const KEYS = {
   C: { type: "natural", steps: [] },
   G: { type: "sharp", steps: ["F"] },
@@ -115,177 +36,178 @@ const state = {
   midiInput: null,
   heldMidi: new Set(),
   notes: [],
-  nextNotes: [],
-  nextKey: null,
   current: 0,
-  round: 0,
   correct: 0,
   missed: 0,
-  streak: 0,
   demoMode: false,
   midiConnectPending: false,
-  roundsUntilKeyChange: null,
   beatsPerMeasure: BEATS_PER_MEASURE,
   beatValue: 4,
   timeSignature: "4/4",
   importedPages: null,
   importedSourceTargets: null,
-  importedOriginalKey: "",
   importedPageIndex: -1,
-  importedFileName: ""
+  keyValue: "C",
+  activeScore: null,
+  performanceStartedAt: null,
+  performanceElapsedMs: 0,
+  performanceComplete: false,
+  timerId: null
 };
 let renderedTargetNotes = new Map();
 
 const els = {
-  workspace: document.querySelector(".workspace"),
-  settingsPanel: document.querySelector("#settingsPanel"),
-  toggleControls: document.querySelector("#toggleControls"),
-  showControls: document.querySelector("#showControls"),
+  libraryView: document.querySelector("#libraryView"),
+  playerView: document.querySelector("#playerView"),
+  scoreLibrary: document.querySelector("#scoreLibrary"),
+  importScore: document.querySelector("#importScore"),
+  backToLibrary: document.querySelector("#backToLibrary"),
+  restartPiece: document.querySelector("#restartPiece"),
   midiStatus: document.querySelector("#midiStatus"),
   midiInputs: document.querySelector("#midiInputs"),
   connectMidi: document.querySelector("#connectMidi"),
-  rangeSelect: document.querySelector("#rangeSelect"),
-  keySelect: document.querySelector("#keySelect"),
-  keyIntervalSelect: document.querySelector("#keyIntervalSelect"),
-  keyCountdown: document.querySelector("#keyCountdown"),
-  accidentalsSelect: document.querySelector("#accidentalsSelect"),
-  distanceSelect: document.querySelector("#distanceSelect"),
-  harmonicEnabled: document.querySelector("#harmonicEnabled"),
-  harmonicDistanceSelect: document.querySelector("#harmonicDistanceSelect"),
-  harmonicChanceSelect: document.querySelector("#harmonicChanceSelect"),
-  chordSizeSelect: document.querySelector("#chordSizeSelect"),
   musicXmlFile: document.querySelector("#musicXmlFile"),
-  loadIncludedMusicXml: document.querySelector("#loadIncludedMusicXml"),
-  musicXmlFileStatus: document.querySelector("#musicXmlFileStatus"),
-  newRound: document.querySelector("#newRound"),
   demoMode: document.querySelector("#demoMode"),
-  scoreValue: document.querySelector("#scoreValue"),
-  missValue: document.querySelector("#missValue"),
-  streakValue: document.querySelector("#streakValue"),
-  roundLabel: document.querySelector("#roundLabel"),
-  targetLabel: document.querySelector("#targetLabel"),
+  pageLabel: document.querySelector("#pageLabel"),
+  pieceTitle: document.querySelector("#pieceTitle"),
+  timerValue: document.querySelector("#timerValue"),
+  accuracyValue: document.querySelector("#accuracyValue"),
   feedback: document.querySelector("#feedback"),
   score: document.querySelector("#score"),
   keyboardHint: document.querySelector("#keyboardHint")
 };
 
-function setControlsCollapsed(isCollapsed) {
-  document.body.classList.toggle("notation-focus", isCollapsed);
-  els.workspace.classList.toggle("controls-collapsed", isCollapsed);
-  els.settingsPanel.hidden = isCollapsed;
-  els.showControls.hidden = !isCollapsed;
-  els.toggleControls.setAttribute("aria-expanded", String(!isCollapsed));
-  els.showControls.setAttribute("aria-expanded", String(!isCollapsed));
-
-  requestAnimationFrame(drawScore);
-}
-
-function diatonicIndex(note) {
-  return note.octave * 7 + STEP_INDEX[note.step];
-}
-
-function staffForNote(note, mode) {
-  if (mode === "bass") return "bass";
-  if (mode === "treble") return "treble";
-  if (note.staff) return note.staff;
-  return note.midi < 60 ? "bass" : "treble";
-}
-
-function noteInRange(note, mode) {
-  if (mode === "treble" || mode === "bass") {
-    const range = STAFF_RANGES[mode];
-    return note.midi >= range.min && note.midi <= range.max;
+function readPerformanceStats() {
+  try {
+    return JSON.parse(localStorage.getItem(PERFORMANCE_STORAGE_KEY)) || {};
+  } catch {
+    return {};
   }
-
-  return noteInRange(note, "treble") || noteInRange(note, "bass");
 }
 
-function grandStavesForNote(note) {
-  return ["treble", "bass"].filter((staff) => noteInRange(note, staff));
-}
-
-function noteWithGrandStaff(note, preferredStaff = "") {
-  const staves = grandStavesForNote(note);
-  const staff = preferredStaff && staves.includes(preferredStaff)
-    ? preferredStaff
-    : randomFrom(staves);
-
-  return { ...note, staff };
-}
-
-function targetWithStaffForMode(target, mode) {
-  if (mode !== "grand") return target;
-
-  const notes = targetNotes(target);
-  const leadNote = notes[0];
-  const staffedLead = leadNote ? noteWithGrandStaff(leadNote) : null;
-
-  if (!target || !Array.isArray(target.notes)) {
-    return staffedLead || target;
+function writePerformanceStats(stats) {
+  try {
+    localStorage.setItem(PERFORMANCE_STORAGE_KEY, JSON.stringify(stats));
+  } catch {
+    // Practice still works when browser storage is unavailable.
   }
+}
 
-  return {
-    ...target,
-    notes: target.notes.map((note, index) => (
-      index === 0
-        ? staffedLead
-        : noteWithGrandStaff(note, staffedLead ? staffedLead.staff : "")
-    ))
+function formatDuration(durationMs) {
+  if (!Number.isFinite(durationMs)) return "—";
+  const totalSeconds = Math.max(0, durationMs) / 1000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = (totalSeconds % 60).toFixed(1).padStart(4, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function currentAccuracy() {
+  const attempts = state.correct + state.missed;
+  return attempts ? (state.correct / attempts) * 100 : null;
+}
+
+function updatePerformanceDisplay() {
+  const elapsed = state.performanceStartedAt === null
+    ? state.performanceElapsedMs
+    : performance.now() - state.performanceStartedAt;
+  els.timerValue.textContent = formatDuration(elapsed);
+  const accuracy = currentAccuracy();
+  els.accuracyValue.textContent = accuracy === null ? "—" : `${Math.round(accuracy)}%`;
+}
+
+function stopPerformanceTimer() {
+  if (state.timerId !== null) window.clearInterval(state.timerId);
+  state.timerId = null;
+}
+
+function startPerformanceTimer() {
+  if (state.performanceStartedAt !== null || state.performanceComplete) return;
+  state.performanceStartedAt = performance.now();
+  state.timerId = window.setInterval(updatePerformanceDisplay, 100);
+  updatePerformanceDisplay();
+}
+
+function resetPerformance() {
+  stopPerformanceTimer();
+  state.performanceStartedAt = null;
+  state.performanceElapsedMs = 0;
+  state.performanceComplete = false;
+  state.correct = 0;
+  state.missed = 0;
+  (state.importedPages || []).flat().forEach((target) => {
+    delete target.missed;
+    delete target.corrected;
+    if (Array.isArray(target.playedMidi)) target.playedMidi.length = 0;
+  });
+  updatePerformanceDisplay();
+}
+
+function recordCompletedPerformance() {
+  if (state.performanceComplete || !state.activeScore || state.performanceStartedAt === null) return;
+  state.performanceElapsedMs = performance.now() - state.performanceStartedAt;
+  state.performanceComplete = true;
+  stopPerformanceTimer();
+
+  const accuracy = currentAccuracy() || 0;
+  const stats = readPerformanceStats();
+  const previous = stats[state.activeScore.id] || { attempts: 0 };
+  stats[state.activeScore.id] = {
+    attempts: previous.attempts + 1,
+    lastDurationMs: state.performanceElapsedMs,
+    bestDurationMs: Math.min(previous.bestDurationMs ?? Infinity, state.performanceElapsedMs),
+    lastAccuracy: accuracy,
+    bestAccuracy: Math.max(previous.bestAccuracy ?? 0, accuracy),
+    lastCorrect: state.correct,
+    lastMissed: state.missed,
+    completedAt: new Date().toISOString()
   };
+  writePerformanceStats(stats);
+  updatePerformanceDisplay();
 }
 
-function keySignature(keyValue = els.keySelect.value) {
-  return KEYS[keyValue] || KEYS.C;
+function renderScoreLibrary() {
+  const stats = readPerformanceStats();
+  els.scoreLibrary.innerHTML = "";
+
+  MUSIC_XML_LIBRARY.forEach((score) => {
+    const result = stats[score.id];
+    const card = document.createElement("article");
+    card.className = "score-card";
+    card.innerHTML = `
+      <div class="score-card-main">
+        <p>${score.composer || "MusicXML score"}</p>
+        <h3>${score.title}</h3>
+        <span>${score.file}</span>
+      </div>
+      <dl class="score-results">
+        <div><dt>Attempts</dt><dd>${result?.attempts || 0}</dd></div>
+        <div><dt>Best time</dt><dd>${formatDuration(result?.bestDurationMs)}</dd></div>
+        <div><dt>Last time</dt><dd>${formatDuration(result?.lastDurationMs)}</dd></div>
+        <div><dt>Best accuracy</dt><dd>${result ? `${Math.round(result.bestAccuracy)}%` : "—"}</dd></div>
+        <div><dt>Last accuracy</dt><dd>${result ? `${Math.round(result.lastAccuracy)}%` : "—"}</dd></div>
+      </dl>
+      <button type="button">Play score</button>
+    `;
+    card.querySelector("button").addEventListener("click", () => loadLibraryScore(score));
+    els.scoreLibrary.append(card);
+  });
 }
 
-function keyAlteration(note, key = keySignature()) {
-  if (!key.steps.includes(note.step)) return 0;
-  return key.type === "sharp" ? 1 : -1;
+function showLibrary() {
+  stopPerformanceTimer();
+  els.playerView.hidden = true;
+  els.libraryView.hidden = false;
+  renderScoreLibrary();
 }
 
-function applyKey(note, key = keySignature()) {
-  const alteration = keyAlteration(note, key);
-  return {
-    ...note,
-    midi: note.midi + alteration,
-    keyAccidental: alteration === 1 ? "#" : alteration === -1 ? "b" : ""
-  };
-}
-
-function notePool(keyValue = els.keySelect.value) {
-  const mode = els.rangeSelect.value;
-  const key = keySignature(keyValue);
-  let pool = NOTES
-    .map((note) => applyKey(note, key))
-    .filter((note) => noteInRange(note, mode));
-
-  if (els.accidentalsSelect.value === "some") {
-    const existingMidi = new Set(pool.map((note) => note.midi));
-    const chromaticNotes = ACCIDENTALS
-      .filter((note) => !existingMidi.has(note.midi))
-      .filter((note) => noteInRange(note, mode));
-    pool = pool.concat(chromaticNotes);
-  }
-
-  return pool;
-}
-
-function randomFrom(pool) {
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function shuffle(items) {
-  return [...items].sort(() => Math.random() - 0.5);
+function showPlayer() {
+  els.libraryView.hidden = true;
+  els.playerView.hidden = false;
 }
 
 function targetNotes(target) {
   if (target && target.rest) return [];
   return target && Array.isArray(target.notes) ? target.notes : target ? [target] : [];
-}
-
-function targetLeadNote(target) {
-  const notes = targetNotes(target);
-  return notes[0] || null;
 }
 
 function directChild(element, name) {
@@ -438,35 +360,6 @@ function keyValueForMidiSignature(sharpsFlats) {
   return majorKeys[Math.max(0, Math.min(14, sharpsFlats + 7))];
 }
 
-function importedNoteForMidi(midi, keyValue, staff) {
-  const sharpSpellings = [
-    ["C", ""], ["C", "#"], ["D", ""], ["D", "#"], ["E", ""], ["F", ""],
-    ["F", "#"], ["G", ""], ["G", "#"], ["A", ""], ["A", "#"], ["B", ""]
-  ];
-  const flatSpellings = [
-    ["C", ""], ["D", "b"], ["D", ""], ["E", "b"], ["E", ""], ["F", ""],
-    ["G", "b"], ["G", ""], ["A", "b"], ["A", ""], ["B", "b"], ["B", ""]
-  ];
-  const key = KEYS[keyValue] || KEYS.C;
-  const spellings = key.type === "flat" ? flatSpellings : sharpSpellings;
-  const [step, writtenAccidental] = spellings[pitchClass(midi)];
-  const keyAccidental = key.steps.includes(step) ? (key.type === "sharp" ? "#" : "b") : "";
-  let accidental = "";
-
-  if (writtenAccidental !== keyAccidental) {
-    accidental = writtenAccidental || (keyAccidental ? "n" : "");
-  }
-
-  return {
-    midi,
-    step,
-    octave: Math.floor(midi / 12) - 1,
-    accidental,
-    keyAccidental: writtenAccidental === keyAccidental ? keyAccidental : "",
-    staff
-  };
-}
-
 function importedNoteForMusicXml(event, keyValue) {
   const key = KEYS[keyValue] || KEYS.C;
   const keyAlter = key.steps.includes(event.step) ? (key.type === "sharp" ? 1 : -1) : 0;
@@ -570,55 +463,14 @@ function startImportedPage(pageIndex) {
   state.importedPageIndex = pageIndex;
   state.notes = page;
   state.current = firstPlayableTargetIndex(page);
-  state.round = pageIndex + 1;
   updateLabels();
   drawScore();
   return true;
 }
 
-function importedTargetInKey(target, keyValue, semitoneOffset) {
-  if (target.rest) {
-    return {
-      rest: true,
-      ...(target.staffRests ? { staffRests: [...target.staffRests] } : {}),
-      ...(target.notationRests ? { notationRests: target.notationRests.map((rest) => ({ ...rest })) } : {})
-    };
-  }
-
-  const notes = targetNotes(target)
-    .map((note) => {
-      const pitchedNote = semitoneOffset === 0 && keyValue === state.importedOriginalKey
-        ? { ...note }
-        : importedNoteForMidi(note.midi + semitoneOffset, keyValue, note.staff);
-      return {
-        ...pitchedNote,
-        voice: note.voice,
-        duration: note.duration,
-        type: note.type,
-        dots: note.dots,
-        slurs: note.slurs?.map((slur) => ({ ...slur })),
-        ties: note.ties?.map((tie) => ({ ...tie }))
-      };
-    })
-    .sort((a, b) => a.midi - b.midi);
-  const transposedTarget = notes.length === 1 ? notes[0] : { notes, playedMidi: [] };
-  if (target.staffRests) transposedTarget.staffRests = [...target.staffRests];
-  if (target.notationRests) {
-    transposedTarget.notationRests = target.notationRests.map((rest) => ({ ...rest }));
-  }
-  return transposedTarget;
-}
-
-function rebuildImportedPages(keyValue, feedbackMessage) {
-  const originalTonic = KEY_TONICS[state.importedOriginalKey];
-  const selectedTonic = KEY_TONICS[keyValue];
-  let semitoneOffset = ((selectedTonic - originalTonic) + 12) % 12;
-  if (semitoneOffset > 6) semitoneOffset -= 12;
-
-  const targets = state.importedSourceTargets.map((target) => (
-    importedTargetInKey(target, keyValue, semitoneOffset)
-  ));
-  const pageSize = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+function rebuildImportedPages(feedbackMessage) {
+  const targets = state.importedSourceTargets;
+  const pageSize = SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
   const pages = [];
   for (let index = 0; index < targets.length; index += pageSize) {
     const page = targets.slice(index, index + pageSize);
@@ -628,234 +480,52 @@ function rebuildImportedPages(keyValue, feedbackMessage) {
 
   state.importedPages = pages;
   state.importedPageIndex = -1;
-  state.nextNotes = [];
-  state.nextKey = null;
-  els.musicXmlFileStatus.textContent = `${state.importedFileName}.xml · ${keyName(keyValue)} · ${pages.length} score ${pages.length === 1 ? "page" : "pages"}`;
+  resetPerformance();
   setFeedback(feedbackMessage, "good");
   startImportedPage(0);
 }
 
-function importMusicXml(xmlText, fileName) {
+function importMusicXml(xmlText, scoreMeta) {
   const score = readMusicXml(xmlText);
   const converted = convertMusicXmlToTargets(score);
-  state.importedFileName = fileName.replace(/\.(musicxml|xml)$/i, "");
+  state.activeScore = scoreMeta;
   state.importedSourceTargets = converted.targets;
-  state.importedOriginalKey = converted.keyValue;
+  state.keyValue = converted.keyValue;
   state.beatsPerMeasure = converted.targetsPerMeasure;
   state.beatValue = converted.beatValue;
   state.timeSignature = converted.timeSignature;
-  els.rangeSelect.value = "grand";
-  els.keySelect.value = converted.keyValue;
-  rebuildImportedPages(converted.keyValue, `Loaded ${fileName}`);
+  els.pieceTitle.textContent = scoreMeta.title;
+  showPlayer();
+  rebuildImportedPages("Ready to play");
 }
 
 async function loadMusicXmlFile(file) {
   if (!file) return;
   try {
-    importMusicXml(await file.text(), file.name);
+    const title = file.name.replace(/\.(musicxml|xml)$/i, "");
+    importMusicXml(await file.text(), {
+      id: `local:${file.name}`,
+      file: file.name,
+      title,
+      composer: "Imported score"
+    });
   } catch (error) {
-    els.musicXmlFileStatus.textContent = "MusicXML import failed";
+    showPlayer();
     setFeedback(error.message || "Could not import MusicXML file", "bad");
   }
 }
 
-async function loadIncludedMusicXml() {
+async function loadLibraryScore(scoreMeta) {
+  showPlayer();
+  els.pieceTitle.textContent = scoreMeta.title;
+  setFeedback("Loading score");
   try {
-    const response = await fetch(INCLUDED_MUSICXML_FILE);
-    if (!response.ok) throw new Error(`Could not load ${INCLUDED_MUSICXML_FILE}`);
-    importMusicXml(await response.text(), INCLUDED_MUSICXML_FILE);
+    const response = await fetch(scoreMeta.file);
+    if (!response.ok) throw new Error(`Could not load ${scoreMeta.file}`);
+    importMusicXml(await response.text(), scoreMeta);
   } catch (error) {
-    els.musicXmlFileStatus.textContent = "Included MusicXML could not be loaded";
-    setFeedback(error.message || "Could not load included MusicXML", "bad");
+    setFeedback(error.message || "Could not load MusicXML", "bad");
   }
-}
-
-function nextNote(pool, previous) {
-  const distance = els.distanceSelect.value;
-  if (!previous || distance === "any") return randomFrom(pool);
-
-  const maxDistance = Number(distance);
-  const previousIndex = diatonicIndex(previous);
-  const nearby = pool.filter((note) => Math.abs(diatonicIndex(note) - previousIndex) <= maxDistance);
-
-  return randomFrom(nearby.length ? nearby : pool);
-}
-
-function shouldMakeHarmonicTarget() {
-  if (!els.harmonicEnabled.checked) return false;
-  return Math.random() * 100 < Number(els.harmonicChanceSelect.value);
-}
-
-function makeHarmonicTarget(base, pool) {
-  const maxDistance = Number(els.harmonicDistanceSelect.value);
-  const chordSize = Number(els.chordSizeSelect.value);
-  const baseIndex = diatonicIndex(base);
-  const selected = [{ ...base }];
-  const candidates = shuffle(pool)
-    .filter((note) => note.midi !== base.midi)
-    .filter((note) => Math.abs(diatonicIndex(note) - baseIndex) <= maxDistance);
-
-  candidates.forEach((candidate) => {
-    if (selected.length >= chordSize) return;
-
-    const testNotes = selected.concat(candidate);
-    const indexes = testNotes.map(diatonicIndex);
-    const span = Math.max(...indexes) - Math.min(...indexes);
-
-    if (span <= maxDistance) {
-      selected.push({ ...candidate });
-    }
-  });
-
-  if (selected.length < chordSize) {
-    return { ...base };
-  }
-
-  return {
-    notes: selected.sort((a, b) => a.midi - b.midi),
-    playedMidi: []
-  };
-}
-
-function makeNotes(keyValue = els.keySelect.value) {
-  const pool = notePool(keyValue);
-  const mode = els.rangeSelect.value;
-  const notes = [];
-
-  for (let index = 0; index < TARGETS_PER_ROUND; index += 1) {
-    const note = nextNote(pool, targetLeadNote(notes[index - 1]));
-    const target = shouldMakeHarmonicTarget() ? makeHarmonicTarget(note, pool) : { ...note };
-    notes.push(targetWithStaffForMode(target, mode));
-  }
-
-  return notes;
-}
-
-function keyAfterAdvanceByFourth(keyValue) {
-  const currentIndex = FOURTHS_KEY_SEQUENCE.indexOf(keyValue);
-  const nextIndex = currentIndex === -1
-    ? 0
-    : (currentIndex + 1) % FOURTHS_KEY_SEQUENCE.length;
-
-  return FOURTHS_KEY_SEQUENCE[nextIndex];
-}
-
-function previewKeyValue() {
-  const interval = selectedKeyRoundInterval();
-  if (interval <= 0) return els.keySelect.value;
-
-  const roundsUntilKeyChange = state.roundsUntilKeyChange || interval;
-  return roundsUntilKeyChange <= 1
-    ? keyAfterAdvanceByFourth(els.keySelect.value)
-    : els.keySelect.value;
-}
-
-function prepareNextRound() {
-  state.nextKey = previewKeyValue();
-  state.nextNotes = makeNotes(state.nextKey);
-}
-
-function makeRound(options = {}) {
-  const usePrepared = options.usePrepared !== false;
-
-  state.importedPages = null;
-  state.importedSourceTargets = null;
-  state.importedOriginalKey = "";
-  state.importedPageIndex = -1;
-  state.importedFileName = "";
-  state.beatsPerMeasure = BEATS_PER_MEASURE;
-  state.beatValue = 4;
-  state.timeSignature = "4/4";
-  els.musicXmlFileStatus.textContent = "Generated exercises";
-
-  if (!usePrepared || !state.nextNotes.length || state.nextKey !== els.keySelect.value) {
-    state.notes = makeNotes();
-  } else {
-    state.notes = state.nextNotes;
-  }
-
-  state.current = 0;
-  state.round += 1;
-  prepareNextRound();
-  updateLabels();
-  drawScore();
-}
-
-function keyName(value) {
-  const selectedOption = Array.from(els.keySelect.options).find((option) => option.value === value);
-  return selectedOption ? selectedOption.textContent : `${value} major`;
-}
-
-function advanceKeyByFourth() {
-  const nextKey = keyAfterAdvanceByFourth(els.keySelect.value);
-
-  els.keySelect.value = nextKey;
-  setFeedback(`Key changed to ${keyName(nextKey)}`);
-}
-
-function selectedKeyRoundInterval() {
-  return Number(els.keyIntervalSelect.value);
-}
-
-function updateKeyCountdown() {
-  if (!state.roundsUntilKeyChange) {
-    els.keyCountdown.textContent = "Key changes off";
-    return;
-  }
-
-  const label = state.roundsUntilKeyChange === 1 ? "round" : "rounds";
-  els.keyCountdown.textContent = `Next key in ${state.roundsUntilKeyChange} ${label}`;
-}
-
-function resetKeyRoundCounter() {
-  const interval = selectedKeyRoundInterval();
-  state.roundsUntilKeyChange = interval > 0 ? interval : null;
-
-  updateKeyCountdown();
-}
-
-function refreshNextRoundPreview() {
-  prepareNextRound();
-  updateLabels();
-  drawScore();
-}
-
-function advanceKeyRoundCounter() {
-  const interval = selectedKeyRoundInterval();
-  if (interval <= 0) return;
-
-  state.roundsUntilKeyChange = state.roundsUntilKeyChange || interval;
-  state.roundsUntilKeyChange -= 1;
-
-  if (state.roundsUntilKeyChange <= 0) {
-    advanceKeyByFourth();
-    state.roundsUntilKeyChange = interval;
-  }
-
-  updateKeyCountdown();
-}
-
-function startNextRound(options = {}) {
-  if (state.importedPages) {
-    startImportedPage(state.importedPageIndex + 1);
-    return;
-  }
-
-  if (options.countKeyRound) {
-    advanceKeyRoundCounter();
-  }
-
-  makeRound({ usePrepared: true });
-}
-
-function handleKeyChange() {
-  if (state.importedSourceTargets) {
-    rebuildImportedPages(els.keySelect.value, `Transposed to ${keyName(els.keySelect.value)}`);
-    return;
-  }
-
-  resetKeyRoundCounter();
-  makeRound({ usePrepared: false });
 }
 
 function vexKey(note) {
@@ -918,88 +588,6 @@ function makeStaveNote(options) {
   staveNote.reset();
   staveNote.buildFlag();
   return staveNote;
-}
-
-function makeVexTarget(target, index, staff, currentIndex) {
-  const VF = window.VexFlow;
-  const duration = vexDurationForBeatValue(state.beatValue);
-  if (target && target.rest) {
-    if (target.staffRests && !target.staffRests.includes(staff)) {
-      return new VF.GhostNote(duration);
-    }
-    return makeStaveNote({
-      clef: staff,
-      keys: [staff === "bass" ? "d/3" : "b/4"],
-      duration: `${duration}r`
-    });
-  }
-
-  const notesInStaff = targetNotes(target)
-    .filter((note) => staffForNote(note, els.rangeSelect.value) === staff)
-    .sort((a, b) => a.midi - b.midi);
-
-  if (!notesInStaff.length) {
-    if (target?.staffRests?.includes(staff)) {
-      return makeStaveNote({
-        clef: staff,
-        keys: [staff === "bass" ? "d/3" : "b/4"],
-        duration: `${duration}r`
-      });
-    }
-    return new VF.GhostNote(duration);
-  }
-
-  const staveNote = makeStaveNote({
-    clef: staff,
-    keys: notesInStaff.map(vexKey),
-    duration,
-    autoStem: true,
-    strokePx: LEDGER_LINE_OVERHANG
-  });
-
-  notesInStaff.forEach((note, noteIndex) => {
-    if (note.accidental) {
-      staveNote.addModifier(new VF.Accidental(note.accidental), noteIndex);
-    }
-  });
-
-  staveNote.setStyle(noteStyleForIndex(index, currentIndex, target));
-  registerRenderedTargetNote(index, staveNote);
-  return staveNote;
-}
-
-function makeBeamsForMeasure(staveNotes) {
-  const VF = window.VexFlow;
-  if (!VF.Beam || state.beatValue < 8) return [];
-
-  const [numerator, denominator] = state.timeSignature.split("/").map(Number);
-  const slotsPerWrittenBeat = state.beatValue / denominator;
-  const slotsPerBeam = denominator === 8 && numerator > 3 && numerator % 3 === 0
-    ? slotsPerWrittenBeat * 3
-    : slotsPerWrittenBeat;
-  if (!Number.isInteger(slotsPerBeam) || slotsPerBeam < 1) return [];
-
-  const beams = [];
-  for (let start = 0; start < staveNotes.length; start += slotsPerBeam) {
-    const beatNotes = staveNotes.slice(start, start + slotsPerBeam);
-    let group = [];
-    const finishGroup = () => {
-      if (group.length > 1) {
-        const beam = new VF.Beam(group, true);
-        group.forEach((note) => note.setStemLength(45));
-        beams.push(beam);
-      }
-      group = [];
-    };
-
-    beatNotes.forEach((note) => {
-      const isBeamableNote = note.getCategory?.() === "StaveNote" && !note.isRest?.();
-      if (isBeamableNote) group.push(note);
-      else finishGroup();
-    });
-    finishGroup();
-  }
-  return beams;
 }
 
 function vexDurationForMusicXmlType(type) {
@@ -1231,7 +819,7 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
     return;
   }
   renderedTargetNotes = new Map();
-  const systemCount = options.systemCount || SYSTEMS_PER_ROUND;
+  const systemCount = options.systemCount || SYSTEMS_PER_PAGE;
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
@@ -1302,30 +890,18 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
         { clef: "treble", stave: trebleStave },
         { clef: "bass", stave: bassStave }
       ];
-      const voices = state.importedPages
-        ? staves.flatMap(({ clef, stave }) => (
-          makeImportedStaffVoices(
-            measureTargets,
-            targetOffset,
-            clef,
-            stave,
-            currentIndex,
-            notationEndpoints,
-            systemIndex,
-            accidentalDisplays
-          )
-        ))
-        : staves.map(({ clef, stave }) => {
-        const staveNotes = measureTargets.map((target, index) => (
-          makeVexTarget(target, targetOffset + index, clef, currentIndex)
-        ));
-        const beams = makeBeamsForMeasure(staveNotes);
-        const voice = new VF.Voice({ num_beats: state.beatsPerMeasure, beat_value: state.beatValue })
-          .setStrict(false)
-          .addTickables(staveNotes);
-
-          return { voice, stave, beams, staff: clef };
-        });
+      const voices = staves.flatMap(({ clef, stave }) => (
+        makeImportedStaffVoices(
+          measureTargets,
+          targetOffset,
+          clef,
+          stave,
+          currentIndex,
+          notationEndpoints,
+          systemIndex,
+          accidentalDisplays
+        )
+      ));
       const vexVoices = voices.map(({ voice }) => voice);
       const noteAreaWidth = Math.min(
         ...staves.map(({ stave }) => stave.getNoteEndX() - stave.getNoteStartX())
@@ -1349,27 +925,21 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
 }
 
 function drawScore() {
-  drawVexScore(els.score, state.notes, state.current, els.keySelect.value);
+  drawVexScore(els.score, state.notes, state.current, state.keyValue);
   updateNextSystemPreview();
 }
 
 function nextSystemPreviewData() {
   const previewTargetCount = MEASURES_PER_SYSTEM * state.beatsPerMeasure;
-  if (state.importedPages) {
-    const nextPage = state.importedPages[state.importedPageIndex + 1];
-    return nextPage
-      ? { notes: nextPage.slice(0, previewTargetCount), keyValue: els.keySelect.value }
-      : null;
-  }
-
-  return state.nextNotes.length
-    ? { notes: state.nextNotes.slice(0, previewTargetCount), keyValue: state.nextKey }
+  const nextPage = state.importedPages?.[state.importedPageIndex + 1];
+  return nextPage
+    ? { notes: nextPage.slice(0, previewTargetCount), keyValue: state.keyValue }
     : null;
 }
 
 function updateNextSystemPreview() {
   const existingPreview = els.score.querySelector(".next-system-preview");
-  const finalSystemStart = (SYSTEMS_PER_ROUND - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  const finalSystemStart = (SYSTEMS_PER_PAGE - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
   const previewData = state.current >= finalSystemStart ? nextSystemPreviewData() : null;
 
   if (!previewData) {
@@ -1380,7 +950,7 @@ function updateNextSystemPreview() {
 
   const preview = document.createElement("div");
   preview.className = "next-system-preview";
-  preview.setAttribute("aria-label", "First system of the next round");
+  preview.setAttribute("aria-label", "First system of the next page");
   els.score.append(preview);
 
   const currentRenderedTargets = renderedTargetNotes;
@@ -1393,16 +963,12 @@ function updateNextSystemPreview() {
 
 function updateLabels() {
   const target = state.notes[state.current];
-  const noteCount = targetNotes(target).length;
-  els.roundLabel.textContent = state.importedPages
-    ? `${state.importedFileName} · Page ${state.importedPageIndex + 1} of ${state.importedPages.length}`
-    : `Round ${state.round}`;
-  els.targetLabel.textContent = target
-    ? `Play the highlighted ${noteCount > 1 ? "chord" : "note"}`
-    : "Round complete";
-  els.scoreValue.textContent = state.correct;
-  els.missValue.textContent = state.missed;
-  els.streakValue.textContent = state.streak;
+  els.pageLabel.textContent = state.importedPages
+    ? `Page ${state.importedPageIndex + 1} of ${state.importedPages.length}`
+    : "Page 1";
+  if (state.activeScore) els.pieceTitle.textContent = state.activeScore.title;
+  if (!target && state.performanceComplete) setFeedback("Piece complete", "good");
+  updatePerformanceDisplay();
 }
 
 function setFeedback(message, type = "") {
@@ -1418,6 +984,7 @@ function handlePlayedNote(midi) {
   const targetIndex = state.current;
   const target = state.notes[targetIndex];
   if (!target) return;
+  startPerformanceTimer();
 
   const expectedNotes = targetNotes(target);
   const expectedMidi = expectedNotes.map((note) => note.midi);
@@ -1433,22 +1000,24 @@ function handlePlayedNote(midi) {
     }
 
     state.correct += 1;
-    state.streak += 1;
     if (target.missed) target.corrected = true;
     state.current = firstPlayableTargetIndex(state.notes, state.current + 1);
     setFeedback("Correct", "good");
   } else {
     state.missed += 1;
-    state.streak = 0;
     target.missed = true;
     setFeedback(`Heard ${midiToName(midi)}`, "bad");
   }
 
   if (state.current >= state.notes.length) {
-    setFeedback("Round complete", "good");
-    const completedPage = state.notes;
-    startNextRound({ countKeyRound: true });
-    if (state.notes !== completedPage) return;
+    const nextPageIndex = state.importedPageIndex + 1;
+    if (nextPageIndex < state.importedPages.length) {
+      setFeedback(`Page ${state.importedPageIndex + 1} complete`, "good");
+      startImportedPage(nextPageIndex);
+      return;
+    }
+    recordCompletedPerformance();
+    setFeedback("Piece complete", "good");
   }
 
   updateLabels();
@@ -1560,7 +1129,7 @@ function toggleDemoMode() {
 }
 
 function handleComputerKey(event) {
-  if (event.repeat) return;
+  if (event.repeat || !state.demoMode) return;
 
   if (event.code === "Space") {
     const target = state.notes[state.current];
@@ -1571,47 +1140,20 @@ function handleComputerKey(event) {
     notes.forEach((note) => state.heldMidi.add(note.midi));
     handlePlayedNote(notes[notes.length - 1].midi);
     notes.forEach((note) => state.heldMidi.delete(note.midi));
-    return;
-  }
-
-  if (!state.demoMode) return;
-  const keyIndex = KEYBOARD_KEYS.indexOf(event.key.toLowerCase());
-  if (keyIndex === -1) return;
-
-  const pool = notePool();
-  const target = state.notes[state.current];
-  const leadNote = targetLeadNote(target);
-  const targetIndex = Math.max(0, pool.findIndex((note) => leadNote && note.midi === leadNote.midi));
-  const start = Math.max(0, Math.min(pool.length - KEYBOARD_KEYS.length, targetIndex - 3));
-  const mappedNote = pool[start + keyIndex];
-
-  if (mappedNote) {
-    state.heldMidi.add(mappedNote.midi);
-    handlePlayedNote(mappedNote.midi);
-    state.heldMidi.delete(mappedNote.midi);
   }
 }
 
 els.connectMidi.addEventListener("click", connectMidi);
-els.toggleControls.addEventListener("click", () => setControlsCollapsed(true));
-els.showControls.addEventListener("click", () => setControlsCollapsed(false));
 els.midiInputs.addEventListener("change", selectMidiInput);
 els.musicXmlFile.addEventListener("change", () => loadMusicXmlFile(els.musicXmlFile.files[0]));
-els.loadIncludedMusicXml.addEventListener("click", loadIncludedMusicXml);
-els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
-els.demoMode.addEventListener("click", toggleDemoMode);
-els.rangeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.keySelect.addEventListener("change", handleKeyChange);
-els.keyIntervalSelect.addEventListener("change", () => {
-  resetKeyRoundCounter();
-  refreshNextRoundPreview();
+els.importScore.addEventListener("click", () => els.musicXmlFile.click());
+els.backToLibrary.addEventListener("click", showLibrary);
+els.restartPiece.addEventListener("click", () => {
+  resetPerformance();
+  startImportedPage(0);
+  setFeedback("Ready to play");
 });
-els.accidentalsSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.distanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.harmonicEnabled.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.harmonicDistanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.harmonicChanceSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
-els.chordSizeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));
+els.demoMode.addEventListener("click", toggleDemoMode);
 document.addEventListener("keydown", handleComputerKey);
 
 function initializeNotation() {
@@ -1634,4 +1176,7 @@ function initializeNotation() {
     });
 }
 
-initializeNotation().then(() => makeRound({ usePrepared: false }));
+initializeNotation().then(() => {
+  renderScoreLibrary();
+  updatePerformanceDisplay();
+});

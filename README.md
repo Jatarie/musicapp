@@ -1,44 +1,33 @@
 # Sightline Music Reader
 
-A browser-based music sight-reading trainer that connects to a MIDI keyboard, displays generated sheet music, and checks whether the played note matches the highlighted note.
+A browser-based MusicXML practice app. It loads scores from a library, follows MIDI input through each page, and records completion time and note accuracy.
 
 ## Run
 
-Web MIDI is normally available only on secure origins or `localhost`. From this folder, start a local static server:
+Web MIDI and repository score loading require a secure origin or `localhost`. From this folder, start a static server:
 
 ```powershell
 python -m http.server 5173
 ```
 
-Then open:
+Then open `http://localhost:5173` in Chrome or Edge.
 
-```text
-http://localhost:5173
-```
+## Score library
 
-Use Chrome or Edge for the most reliable Web MIDI support.
+Repository MusicXML files are listed in `MUSIC_XML_LIBRARY` near the top of `app.js`. Static web apps cannot enumerate files in their deployed directory, so add one manifest entry when adding a new `.xml` or `.musicxml` score.
 
-## Deploy to GitHub Pages
+Users can also load a local score with **Import MusicXML**.
 
-This repository is ready to publish as a GitHub Pages app. The included workflow deploys the static files in the repository root whenever changes are pushed to `main` or `master`.
+## Performance statistics
 
-In GitHub, open the repository settings and set **Pages > Build and deployment > Source** to **GitHub Actions**. After the workflow runs, the app will be available at:
-
-```text
-https://<your-github-username>.github.io/<repository-name>/
-```
-
-GitHub Pages serves over HTTPS, so Web MIDI can request device access there in supported browsers.
+Timing starts with the first played note and ends when the final target in the piece is completed. Accuracy is calculated as completed note/chord targets divided by completed targets plus incorrect note presses. Completed results are stored in browser `localStorage` and shown in the score library.
 
 ## Features
 
-- Treble, bass, and grand-staff practice ranges
-- Four systems of three measures per score page (4/4 for generated rounds; imported meter for MusicXML pieces)
-- MusicXML import with meter/key detection, voices, chord grouping, rests, and score pagination
-- Included Bach Prelude in C major MusicXML exercise
-- Configurable melodic distance between consecutive notes
-- Major keys with rendered key signatures
-- Optional extra chromatic notes
-- MIDI input selection
-- Octave-exact note checking
-- Computer-key demo mode for testing without a keyboard.
+- MusicXML score library and local MusicXML import
+- Four systems of two measures per page
+- Automatic page progression
+- Meter, key, voices, chords, rests, ties, and slurs from MusicXML
+- MIDI input selection and octave-exact checking
+- Per-piece best/last completion time and accuracy
+- Optional Space-bar input for testing without a MIDI keyboard
