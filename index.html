@@ -6,57 +6,57 @@
     <title>Sightline Music Reader</title>
     <link rel="stylesheet" href="styles.css">
   </head>
-  <body>
-    <main class="app-shell">
-      <header class="topbar">
+  <body class="m-0 min-h-screen bg-[#f4f7f6] font-sans text-[#172026] [background-image:linear-gradient(135deg,rgb(15_127_120/8%),transparent_42%),linear-gradient(315deg,rgb(240_180_60/12%),transparent_48%)] [&.player-active]:overflow-auto [&.player-active]:bg-[#fffdf8] [&.player-active]:[background-image:none]">
+    <main class="app-shell mx-auto w-[min(1240px,calc(100vw-32px))] pt-7 pb-10 max-[620px]:w-[min(100vw-20px,1240px)] max-[620px]:pt-[18px] [body.player-active_&]:w-full [body.player-active_&]:p-0">
+      <header class="topbar mb-6 flex items-end justify-between gap-6 max-[960px]:flex-col max-[960px]:items-stretch [body.player-active_&]:hidden">
         <div>
-          <p class="eyebrow">MusicXML practice library</p>
-          <h1>Sightline</h1>
+          <p class="eyebrow mt-0 mb-[5px] text-[0.78rem] font-extrabold text-[#60717c] uppercase">MusicXML practice library</p>
+          <h1 class="mt-0 mb-0 text-[clamp(2.4rem,5vw,4rem)] leading-[0.95] font-bold">Sightline</h1>
         </div>
-        <div class="midi-panel">
-          <div class="status-pill" id="midiStatus">MIDI disconnected</div>
-          <select id="midiInputs" aria-label="MIDI input devices">
+        <div class="midi-panel grid w-[min(620px,100%)] grid-cols-[minmax(150px,1fr)_minmax(170px,1.4fr)_auto] items-center gap-2 max-[960px]:w-full max-[620px]:grid-cols-1">
+          <div class="status-pill flex min-h-10 items-center justify-center rounded-lg border border-[#d7e0e4] bg-white px-3 text-center text-sm text-[#60717c] [&.connected]:border-[#177245]/35 [&.connected]:bg-[#177245]/8 [&.connected]:text-[#177245]" id="midiStatus">MIDI disconnected</div>
+          <select class="min-h-10 w-full rounded-lg border border-[#d7e0e4] bg-white px-2.5 text-[#172026]" id="midiInputs" aria-label="MIDI input devices">
             <option value="">No MIDI inputs</option>
           </select>
-          <button id="connectMidi" type="button">Connect MIDI</button>
+          <button class="min-h-10 cursor-pointer rounded-lg border-0 bg-[#0f7f78] px-4 font-bold text-white hover:bg-[#095f5b]" id="connectMidi" type="button">Connect MIDI</button>
         </div>
       </header>
 
-      <section class="library-view" id="libraryView" aria-labelledby="libraryTitle">
-        <div class="library-header">
+      <section class="library-view rounded-xl border border-[#d7e0e4] bg-white/94 p-[clamp(20px,4vw,40px)] shadow-[0_18px_48px_rgb(39_52_58/8%)]" id="libraryView" aria-labelledby="libraryTitle">
+        <div class="library-header mb-7 flex items-end justify-between gap-6 max-[960px]:flex-col max-[960px]:items-stretch">
           <div>
-            <p class="eyebrow">Choose a score</p>
-            <h2 id="libraryTitle">Music library</h2>
-            <p class="library-intro">Select a piece to begin. Results are saved in this browser.</p>
+            <p class="eyebrow mt-0 mb-[5px] text-[0.78rem] font-extrabold text-[#60717c] uppercase">Choose a score</p>
+            <h2 class="mt-0 mb-0 text-[1.6rem] font-bold" id="libraryTitle">Music library</h2>
+            <p class="library-intro mt-2 mb-0 text-[#60717c]">Select a piece to begin. Results are saved in this browser.</p>
           </div>
           <div>
-            <button class="secondary" id="importScore" type="button">Import MusicXML</button>
+            <button class="secondary min-h-10 cursor-pointer rounded-lg border-0 bg-[#e7eeee] px-4 font-bold text-[#172026] hover:bg-[#d8e3e3]" id="importScore" type="button">Import MusicXML</button>
             <input id="musicXmlFile" type="file" hidden accept=".xml,.musicxml,application/vnd.recordare.musicxml+xml,application/xml,text/xml">
           </div>
         </div>
-        <div class="score-library" id="scoreLibrary"></div>
+        <div class="score-library grid gap-3" id="scoreLibrary"></div>
       </section>
 
-      <section class="player-view" id="playerView" hidden aria-label="Score player">
-        <div class="player-toolbar">
-          <button class="secondary" id="backToLibrary" type="button">← Library</button>
+      <section class="player-view rounded-xl border border-[#d7e0e4] bg-white/94 p-[18px] shadow-[0_18px_48px_rgb(39_52_58/8%)] max-[620px]:p-2.5 [body.player-active_&]:min-h-screen [body.player-active_&]:rounded-none [body.player-active_&]:border-0 [body.player-active_&]:p-0 [body.player-active_&]:shadow-none" id="playerView" hidden aria-label="Score player">
+        <div class="player-toolbar mb-3.5 grid grid-cols-[auto_minmax(180px,1fr)_auto_minmax(150px,auto)] items-center gap-[18px] max-[960px]:grid-cols-[auto_1fr] [body.player-active_&]:hidden">
+          <button class="secondary min-h-10 cursor-pointer rounded-lg border-0 bg-[#e7eeee] px-4 font-bold text-[#172026] hover:bg-[#d8e3e3]" id="backToLibrary" type="button">← Library</button>
           <div class="player-title">
-            <p id="pageLabel">Page 1</p>
-            <h2 id="pieceTitle">Score</h2>
+            <p class="mt-0 mb-[3px] text-[0.78rem] font-extrabold text-[#60717c] uppercase" id="pageLabel">Page 1</p>
+            <h2 class="mt-0 mb-0 text-[1.6rem] font-bold" id="pieceTitle">Score</h2>
           </div>
-          <div class="live-stats" aria-label="Current performance statistics">
-            <span><strong id="timerValue">0:00</strong> Time</span>
-            <span><strong id="accuracyValue">—</strong> Accuracy</span>
+          <div class="live-stats flex gap-[18px] max-[960px]:col-span-2" aria-label="Current performance statistics">
+            <span class="text-[0.76rem] font-bold text-[#60717c]"><strong class="block text-[1.1rem] text-[#172026]" id="timerValue">0:00</strong> Time</span>
+            <span class="text-[0.76rem] font-bold text-[#60717c]"><strong class="block text-[1.1rem] text-[#172026]" id="accuracyValue">—</strong> Accuracy</span>
           </div>
-          <div class="feedback" id="feedback">Play the highlighted note</div>
+          <div class="feedback min-w-[150px] rounded-lg bg-[#eef4f4] px-3 py-2.5 text-center font-bold text-[#60717c] max-[960px]:col-span-2 [&.good]:bg-[#177245] [&.good]:text-white [&.bad]:bg-[#b23a34] [&.bad]:text-white" id="feedback">Play the highlighted note</div>
         </div>
 
-        <div id="score" class="score" role="img" aria-label="MusicXML score"></div>
+        <div id="score" class="score relative min-h-[340px] w-full overflow-x-auto rounded-[9px] border border-[#d7e0e4] bg-[#fffdf8] [&_svg]:block [&_svg]:h-auto [&_svg]:min-w-[760px] [&_svg]:w-full [body.player-active_&]:min-h-screen [body.player-active_&]:rounded-none [body.player-active_&]:border-0" role="img" aria-label="MusicXML score"></div>
 
-        <div class="player-footer">
-          <button class="secondary" id="restartPiece" type="button">Restart piece</button>
-          <button class="secondary" id="demoMode" type="button">Use computer keys</button>
-          <span class="keyboard-hint" id="keyboardHint" hidden>Press Space to play the highlighted note or chord.</span>
+        <div class="player-footer mt-3 flex items-center gap-2 max-[620px]:flex-col max-[620px]:items-stretch [body.player-active_&]:hidden">
+          <button class="secondary min-h-10 cursor-pointer rounded-lg border-0 bg-[#e7eeee] px-4 font-bold text-[#172026] hover:bg-[#d8e3e3]" id="restartPiece" type="button">Restart piece</button>
+          <button class="secondary min-h-10 cursor-pointer rounded-lg border-0 bg-[#e7eeee] px-4 font-bold text-[#172026] hover:bg-[#d8e3e3]" id="demoMode" type="button">Use computer keys</button>
+          <span class="keyboard-hint text-sm text-[#60717c]" id="keyboardHint" hidden>Press Space to play the highlighted note or chord.</span>
         </div>
       </section>
     </main>

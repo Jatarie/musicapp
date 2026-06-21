@@ -2,7 +2,8 @@ const SYSTEMS_PER_PAGE = 4;
 const MEASURES_PER_SYSTEM = 2;
 const BEATS_PER_MEASURE = 4;
 const NOTE_SCALE = 1.0;
-const RENDER_SLURS_AND_TIES = false;
+const RENDER_SLURS = false;
+const RENDER_TIES = true;
 // Keep ledger lines inside the notehead bounds so adjacent notes retain a visible gap.
 const LEDGER_LINE_OVERHANG = 0.00;
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
@@ -193,14 +194,14 @@ function renderScoreLibrary() {
   MUSIC_XML_LIBRARY.forEach((score) => {
     const result = stats[score.id];
     const card = document.createElement("article");
-    card.className = "score-card";
+    card.className = "score-card grid grid-cols-[minmax(220px,1.1fr)_minmax(620px,2.4fr)_auto] items-center gap-6 rounded-[10px] border border-[#d7e0e4] bg-[#fbfdfd] p-5 max-[960px]:grid-cols-1";
     card.innerHTML = `
       <div class="score-card-main">
-        <p>${score.composer || "MusicXML score"}</p>
-        <h3>${score.title}</h3>
-        <span>${score.file}</span>
+        <p class="mt-0 mb-1 block text-[0.82rem] font-bold text-[#60717c]">${score.composer || "MusicXML score"}</p>
+        <h3 class="m-0 text-xl font-bold">${score.title}</h3>
+        <span class="mt-1.5 mb-0 block text-[0.82rem] font-medium text-[#60717c]">${score.file}</span>
       </div>
-      <dl class="score-results">
+      <dl class="score-results m-0 grid grid-cols-7 gap-3 max-[960px]:grid-cols-3 max-[620px]:grid-cols-2 [&>div]:min-w-0 [&_dt]:text-[0.72rem] [&_dt]:font-bold [&_dt]:text-[#60717c] [&_dd]:mt-[3px] [&_dd]:mb-0 [&_dd]:text-base [&_dd]:font-extrabold">
         <div><dt>Attempts</dt><dd>${result?.attempts || 0}</dd></div>
         <div><dt>Best time</dt><dd>${formatDuration(result?.bestDurationMs)}</dd></div>
         <div><dt>Last time</dt><dd>${formatDuration(result?.lastDurationMs)}</dd></div>
@@ -209,7 +210,7 @@ function renderScoreLibrary() {
         <div><dt>Best tempo</dt><dd>${formatTempo(result?.bestTempo)}</dd></div>
         <div><dt>Last tempo</dt><dd>${formatTempo(result?.lastTempo)}</dd></div>
       </dl>
-      <button type="button">Play score</button>
+      <button class="min-h-10 cursor-pointer rounded-lg border-0 bg-[#0f7f78] px-4 font-bold text-white hover:bg-[#095f5b] max-[960px]:justify-self-start" type="button">Play score</button>
     `;
     card.querySelector("button").addEventListener("click", () => loadLibraryScore(score));
     els.scoreLibrary.append(card);
@@ -969,37 +970,43 @@ function drawMusicXmlCurves(context, endpoints) {
   };
 
   endpoints.forEach((endpoint) => {
-    endpoint.slurs.forEach((slur) => {
-      if (slur.type === "stop" || slur.type === "continue") {
-        const start = pendingSlurs.get(slur.id);
-        if (start) {
-          drawSlur(start.endpoint, endpoint, start.placement || slur.placement);
-          pendingSlurs.delete(slur.id);
-        } else if (slur.type === "stop") {
-          drawSlur(null, endpoint, slur.placement);
+    if (RENDER_SLURS) {
+      endpoint.slurs.forEach((slur) => {
+        if (slur.type === "stop" || slur.type === "continue") {
+          const start = pendingSlurs.get(slur.id);
+          if (start) {
+            drawSlur(start.endpoint, endpoint, start.placement || slur.placement);
+            pendingSlurs.delete(slur.id);
+          } else if (slur.type === "stop") {
+            drawSlur(null, endpoint, slur.placement);
+          }
         }
-      }
-      if (slur.type === "start" || slur.type === "continue") {
-        pendingSlurs.set(slur.id, { endpoint, placement: slur.placement });
-      }
-    });
+        if (slur.type === "start" || slur.type === "continue") {
+          pendingSlurs.set(slur.id, { endpoint, placement: slur.placement });
+        }
+      });
+    }
 
-    endpoint.ties.forEach((tie) => {
-      if (tie.type === "stop") {
-        const start = pendingTies.get(tie.id);
-        if (start) {
-          drawTie(start, endpoint);
-          pendingTies.delete(tie.id);
-        } else {
-          drawTie(null, endpoint);
+    if (RENDER_TIES) {
+      endpoint.ties.forEach((tie) => {
+        if (tie.type === "stop") {
+          const start = pendingTies.get(tie.id);
+          if (start) {
+            drawTie(start, endpoint);
+            pendingTies.delete(tie.id);
+          } else {
+            drawTie(null, endpoint);
+          }
         }
-      }
-      if (tie.type === "start") pendingTies.set(tie.id, endpoint);
-    });
+        if (tie.type === "start") pendingTies.set(tie.id, endpoint);
+      });
+    }
   });
 
-  pendingSlurs.forEach(({ endpoint, placement }) => drawSlur(endpoint, null, placement));
-  pendingTies.forEach((endpoint) => drawTie(endpoint, null));
+  if (RENDER_SLURS) {
+    pendingSlurs.forEach(({ endpoint, placement }) => drawSlur(endpoint, null, placement));
+  }
+  if (RENDER_TIES) pendingTies.forEach((endpoint) => drawTie(endpoint, null));
 }
 
 function addStaveConnectors(context, trebleStave, bassStave, isSystemStart) {
@@ -1141,7 +1148,7 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
     }
   }
 
-  if (state.importedPages && RENDER_SLURS_AND_TIES) {
+  if (state.importedPages && (RENDER_SLURS || RENDER_TIES)) {
     drawMusicXmlCurves(context, notationEndpoints);
   }
 }
@@ -1171,7 +1178,7 @@ function updateNextSystemPreview() {
   if (existingPreview) return;
 
   const preview = document.createElement("div");
-  preview.className = "next-system-preview";
+  preview.className = "next-system-preview pointer-events-none absolute top-0 left-0 z-2 h-[290px] w-full min-w-[760px] overflow-hidden border-b-2 border-[#0f7f78] bg-[#fffdf8] shadow-[0_8px_18px_rgb(17_25_29/12%)] after:absolute after:top-2.5 after:right-3.5 after:rounded-full after:bg-[#0f7f78] after:px-2 after:py-1 after:text-[0.72rem] after:font-extrabold after:text-white after:uppercase after:content-['Next_page']";
   preview.setAttribute("aria-label", "First system of the next page");
   els.score.append(preview);
 
@@ -1195,7 +1202,8 @@ function updateLabels() {
 
 function setFeedback(message, type = "") {
   els.feedback.textContent = message;
-  els.feedback.className = `feedback ${type}`.trim();
+  els.feedback.classList.remove("good", "bad");
+  if (type) els.feedback.classList.add(type);
 }
 
 function pitchClass(midi) {
