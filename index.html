@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sightline MIDI Reader</title>
+    <title>Sightline Music Reader</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -11,7 +11,7 @@
       <section class="topbar" aria-label="Application controls">
         <div>
           <p class="eyebrow">Sight-reading trainer</p>
-          <h1>Sightline MIDI Reader</h1>
+          <h1>Sightline Music Reader</h1>
         </div>
         <div class="midi-panel">
           <div class="status-pill" id="midiStatus">MIDI disconnected</div>
@@ -68,11 +68,11 @@
             </select>
           </div>
 
-          <div class="control-group midi-import">
-            <label for="midiFile">Import MIDI piece</label>
-            <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi">
-            <button id="loadIncludedMidi" class="secondary" type="button">Load included Gymnopédie</button>
-            <div class="countdown" id="midiFileStatus">Generated exercises</div>
+          <div class="control-group musicxml-import">
+            <label for="musicXmlFile">Import MusicXML piece</label>
+            <input id="musicXmlFile" type="file" accept=".xml,.musicxml,application/vnd.recordare.musicxml+xml,application/xml,text/xml">
+            <button id="loadIncludedMusicXml" class="secondary" type="button">Load included Prelude in C</button>
+            <div class="countdown" id="musicXmlFileStatus">Generated exercises</div>
           </div>
 
           <div class="control-group">

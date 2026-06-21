@@ -82,11 +82,10 @@ const STAFF_RANGES = {
   bass: { min: 26, max: 74 }
 };
 const SYSTEMS_PER_ROUND = 4;
-const MEASURES_PER_SYSTEM = 4;
+const MEASURES_PER_SYSTEM = 3;
 const BEATS_PER_MEASURE = 4;
 const TARGETS_PER_ROUND = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * BEATS_PER_MEASURE;
-const INCLUDED_MIDI_FILE = "gymnopedie-no-1-satie.mid";
-const INCLUDED_MIDI_BASE64 = "TVRoZAAAAAYAAQACAeBNVHJrAAAEBwD/AwZQaWFubwAA/1gEAwIYCAD/WQICAAD/UQMQ9EcAsHkAAMAAALAHZAAKQABbAABdAAD/IQEAsGCQTiGDX04AAVEjg19RAAFPJYNfTwABTieDX04AAUkqg19JAAFHLINfRwABSS6DX0kAAUoxg19KAAFFLYsfRQABQiGDYEIArQBOIYNfTgABUSODX1EAAU8lg19PAAFOJ4NfTgABSSmDX0kAAUcrg19HAAFJLYNfSQABSi+DX0oAAUUxix9FAAFJLIsfSQABTieLH04AAUAhoAdAAIFZRTGDX0UAAUcyg19HAAFININfSAABTDaDX0wAAUo3g19KAAFHOYNfRwABSjuDX0oAAUg8g19IAAFHPoNfRwABSkCSL0oAMUoxg19KAAFMM4NfTAABTTWDX00AAU83g19PAAFROYNfUQABSDuDX0gAAUo9g19KAAFMQINfTAABSj6DX0oAAUc7g19HAAFKOZIvSgAxSjGDX0oAAU8zix9PAAFOOYsfTgABR0CDX0cAAUU+g19FAAFHO4NfRwABSTmDX0kAAUo2g19KAAFMNINfTAABSTGDX0kAAUoxg19KAAFMLoNfTAABQiuDYDkoAD4og185AAA+AAE7JQA+JQBDJYNfQgAAOwAAPgAAQwABPCEAQCEARSEASCGKVzwAAEAAAEUAAEgAST4hAEIhAEUhAEohilc+AABCAABFAABKALEpTiGDX04AAVEkg19RAAFPJ4NfTwABTiqDX04AAUktg19JAAFHMYNfRwABSSyDX0kAAUong19KAAFFIYsfRQABQiGDYEIArQBOIYNfTgABUSODX1EAAU8lg19PAAFOJ4NfTgABSSmDX0kAAUcrg19HAAFJLYNfSQABSi+DX0oAAUUxix9FAAFJLYsfSQABTimLH04AAUAloE9AAIERRTGDX0UAAUczg19HAAFINoNfSAABTDiDX0wAAUo7g19KAAFHPYNfRwABSkCDX0oAAUg7g19IAAFHNoNfRwABSjGSL0oAMUoxg19KAAFMM4NfTAABTTWDX00AAU83g19PAAFROYNfUQABSDuDX0gAAUo9g19KAAFMQINfTAABSj6DX0oAAUc7g19HAAFKOZIvSgAxSjGDX0oAAU8zix9PAAFNOYsfTQABR0CDX0cAAUg/g19IAAFNPYNf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";
+const INCLUDED_MUSICXML_FILE = "prelude-in-c-major.xml";
 const KEY_TONICS = {
   C: 0, "C#": 1, Db: 1, D: 2, Eb: 3, E: 4, F: 5, "F#": 6,
   Gb: 6, G: 7, Ab: 8, A: 9, Bb: 10, B: 11, Cb: 11
@@ -151,9 +150,9 @@ const els = {
   harmonicDistanceSelect: document.querySelector("#harmonicDistanceSelect"),
   harmonicChanceSelect: document.querySelector("#harmonicChanceSelect"),
   chordSizeSelect: document.querySelector("#chordSizeSelect"),
-  midiFile: document.querySelector("#midiFile"),
-  loadIncludedMidi: document.querySelector("#loadIncludedMidi"),
-  midiFileStatus: document.querySelector("#midiFileStatus"),
+  musicXmlFile: document.querySelector("#musicXmlFile"),
+  loadIncludedMusicXml: document.querySelector("#loadIncludedMusicXml"),
+  musicXmlFileStatus: document.querySelector("#musicXmlFileStatus"),
   newRound: document.querySelector("#newRound"),
   demoMode: document.querySelector("#demoMode"),
   scoreValue: document.querySelector("#scoreValue"),
@@ -285,115 +284,149 @@ function targetLeadNote(target) {
   return notes[0] || null;
 }
 
-function readMidiFile(arrayBuffer) {
-  const bytes = new Uint8Array(arrayBuffer);
-  const view = new DataView(arrayBuffer);
-  let offset = 0;
+function directChild(element, name) {
+  return Array.from(element.children).find((child) => child.localName === name) || null;
+}
 
-  const readText = (length) => {
-    const value = new TextDecoder().decode(bytes.slice(offset, offset + length));
-    offset += length;
-    return value;
-  };
-  const readUint16 = () => {
-    const value = view.getUint16(offset);
-    offset += 2;
-    return value;
-  };
-  const readUint32 = () => {
-    const value = view.getUint32(offset);
-    offset += 4;
-    return value;
-  };
-  const readVlq = (trackEnd) => {
-    let value = 0;
-    let byte;
-    do {
-      if (offset >= trackEnd) throw new Error("Unexpected end of MIDI track");
-      byte = bytes[offset];
-      offset += 1;
-      value = (value * 128) + (byte & 0x7f);
-    } while (byte & 0x80);
-    return value;
-  };
+function childNumber(element, name, fallback = 0) {
+  const child = directChild(element, name);
+  const value = child ? Number(child.textContent.trim()) : NaN;
+  return Number.isFinite(value) ? value : fallback;
+}
 
-  if (readText(4) !== "MThd") throw new Error("Not a Standard MIDI file");
-  const headerLength = readUint32();
-  if (headerLength < 6) throw new Error("Invalid MIDI header");
-  const format = readUint16();
-  const trackCount = readUint16();
-  const division = readUint16();
-  offset += headerLength - 6;
-
-  if (format > 1) throw new Error("MIDI format 2 is not supported");
-  if (division & 0x8000) throw new Error("SMPTE-timed MIDI files are not supported");
-
-  const noteEvents = [];
-  const trackNames = [];
-  let timeSignature = null;
-  let keySignature = null;
-
-  for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
-    if (readText(4) !== "MTrk") throw new Error("Invalid MIDI track header");
-    const trackLength = readUint32();
-    const trackEnd = offset + trackLength;
-    let tick = 0;
-    let runningStatus = null;
-
-    while (offset < trackEnd) {
-      tick += readVlq(trackEnd);
-      let status = bytes[offset];
-      if (status < 0x80) {
-        if (runningStatus === null) throw new Error("Invalid MIDI running status");
-        status = runningStatus;
-      } else {
-        offset += 1;
-        if (status < 0xf0) runningStatus = status;
-      }
-
-      if (status === 0xff) {
-        const type = bytes[offset];
-        offset += 1;
-        const length = readVlq(trackEnd);
-        const data = bytes.slice(offset, offset + length);
-        offset += length;
-
-        if (type === 0x03) {
-          trackNames[trackIndex] = new TextDecoder().decode(data).replace(/\0/g, "").trim();
-        } else if (type === 0x58 && data.length >= 2 && !timeSignature) {
-          timeSignature = { numerator: data[0], denominator: 2 ** data[1] };
-        } else if (type === 0x59 && data.length >= 2 && !keySignature) {
-          keySignature = { sharpsFlats: data[0] > 127 ? data[0] - 256 : data[0], minor: data[1] === 1 };
-        }
-        continue;
-      }
-
-      if (status === 0xf0 || status === 0xf7) {
-        offset += readVlq(trackEnd);
-        continue;
-      }
-
-      const messageType = status & 0xf0;
-      const dataLength = messageType === 0xc0 || messageType === 0xd0 ? 1 : 2;
-      const firstData = bytes[offset];
-      const secondData = dataLength === 2 ? bytes[offset + 1] : 0;
-      offset += dataLength;
-
-      if (messageType === 0x90 && secondData > 0) {
-        noteEvents.push({ tick, midi: firstData, trackIndex });
-      }
-    }
-
-    offset = trackEnd;
+function readMusicXml(xmlText) {
+  const documentNode = new DOMParser().parseFromString(xmlText, "application/xml");
+  if (documentNode.querySelector("parsererror")) throw new Error("The MusicXML file is not valid XML");
+  if (documentNode.documentElement.localName !== "score-partwise") {
+    throw new Error("Only partwise MusicXML scores are supported");
   }
 
-  return {
-    division,
-    noteEvents,
-    trackNames,
-    timeSignature: timeSignature || { numerator: 4, denominator: 4 },
-    keySignature: keySignature || { sharpsFlats: 0, minor: false }
-  };
+  let divisions = 1;
+  let numerator = 4;
+  let denominator = 4;
+  let sharpsFlats = 0;
+  let smallestType = 4;
+  let measureCount = 0;
+  const events = [];
+  const typeValues = { whole: 1, half: 2, quarter: 4, eighth: 8, "16th": 16 };
+  const parts = Array.from(documentNode.documentElement.children)
+    .filter((element) => element.localName === "part");
+
+  parts.forEach((part, partIndex) => {
+    const measures = Array.from(part.children).filter((element) => element.localName === "measure");
+    measureCount = Math.max(measureCount, measures.length);
+
+    measures.forEach((measure, measureIndex) => {
+      let cursor = 0;
+      let previousOnset = 0;
+
+      Array.from(measure.children).forEach((element) => {
+        if (element.localName === "attributes") {
+          divisions = childNumber(element, "divisions", divisions);
+          const key = directChild(element, "key");
+          const time = directChild(element, "time");
+          if (key) sharpsFlats = childNumber(key, "fifths", sharpsFlats);
+          if (time) {
+            numerator = childNumber(time, "beats", numerator);
+            denominator = childNumber(time, "beat-type", denominator);
+          }
+          return;
+        }
+
+        if (element.localName === "backup") {
+          cursor -= childNumber(element, "duration") / divisions;
+          return;
+        }
+        if (element.localName === "forward") {
+          cursor += childNumber(element, "duration") / divisions;
+          return;
+        }
+        if (element.localName !== "note") return;
+
+        const duration = childNumber(element, "duration") / divisions;
+        const isChordNote = Boolean(directChild(element, "chord"));
+        const onset = isChordNote ? previousOnset : cursor;
+        const type = directChild(element, "type")?.textContent.trim();
+        const voice = directChild(element, "voice")?.textContent.trim() || "1";
+        const dots = Array.from(element.children).filter((child) => child.localName === "dot").length;
+        const notations = directChild(element, "notations");
+        const slurs = notations
+          ? Array.from(notations.children)
+            .filter((child) => child.localName === "slur")
+            .map((slur) => ({
+              id: `${partIndex}:${slur.getAttribute("number") || "1"}`,
+              type: slur.getAttribute("type") || "start",
+              placement: slur.getAttribute("placement") || ""
+            }))
+          : [];
+        if (typeValues[type]) smallestType = Math.max(smallestType, typeValues[type]);
+
+        const pitch = directChild(element, "pitch");
+        const isGraceNote = Boolean(directChild(element, "grace"));
+        const staff = childNumber(element, "staff", 0);
+        if (pitch && !isGraceNote) {
+          const step = directChild(pitch, "step")?.textContent.trim();
+          const octave = childNumber(pitch, "octave");
+          const alter = childNumber(pitch, "alter");
+          const semitones = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+          if (!(step in semitones)) throw new Error("A MusicXML pitch has no valid step");
+          const midi = ((octave + 1) * 12) + semitones[step] + alter;
+          const ties = [...new Set(Array.from(element.children)
+            .filter((child) => child.localName === "tie")
+            .map((tie) => tie.getAttribute("type") || "start"))]
+            .map((tieType) => ({
+              id: `${partIndex}:${staff}:${voice}:${midi}`,
+              type: tieType
+            }));
+          events.push({
+            measureIndex,
+            onset,
+            midi,
+            step,
+            octave,
+            alter,
+            staff,
+            voice,
+            duration,
+            type,
+            dots,
+            slurs,
+            ties
+          });
+        } else if (directChild(element, "rest") && !isGraceNote) {
+          const restElement = directChild(element, "rest");
+          const displayStep = directChild(restElement, "display-step")?.textContent.trim();
+          const displayOctave = childNumber(restElement, "display-octave", NaN);
+          const displayKey = displayStep && Number.isFinite(displayOctave)
+            ? `${displayStep.toLowerCase()}/${displayOctave}`
+            : null;
+          events.push({
+            measureIndex,
+            onset,
+            rest: true,
+            staff,
+            voice,
+            duration,
+            type,
+            dots,
+            displayKey
+          });
+        }
+
+        if (!isChordNote) {
+          previousOnset = onset;
+          cursor += duration;
+        }
+      });
+    });
+  });
+
+  if (!events.some((event) => !event.rest)) throw new Error("The MusicXML file contains no pitched notes");
+  if (![1, 2, 4, 8, 16].includes(denominator)) {
+    throw new Error(`Unsupported ${numerator}/${denominator} meter`);
+  }
+
+  return { events, measureCount, numerator, denominator, sharpsFlats, smallestType };
 }
 
 function keyValueForMidiSignature(sharpsFlats) {
@@ -430,58 +463,91 @@ function importedNoteForMidi(midi, keyValue, staff) {
   };
 }
 
-function convertMidiToTargets(midi) {
-  const { numerator, denominator } = midi.timeSignature;
-  if (![1, 2, 4, 8, 16].includes(denominator)) throw new Error(`Unsupported ${numerator}/${denominator} meter`);
-  if (!midi.noteEvents.length) throw new Error("The MIDI file contains no note events");
+function importedNoteForMusicXml(event, keyValue) {
+  const key = KEYS[keyValue] || KEYS.C;
+  const keyAlter = key.steps.includes(event.step) ? (key.type === "sharp" ? 1 : -1) : 0;
+  const accidentalNames = { "-2": "bb", "-1": "b", 0: "", 1: "#", 2: "##" };
+  const writtenAccidental = accidentalNames[event.alter] ?? "";
+  const keyAccidental = accidentalNames[keyAlter];
 
-  const keyValue = keyValueForMidiSignature(midi.keySignature.sharpsFlats);
-  const eventsByTrack = new Map();
-  midi.noteEvents.forEach((event) => {
-    const values = eventsByTrack.get(event.trackIndex) || [];
-    values.push(event.midi);
-    eventsByTrack.set(event.trackIndex, values);
-  });
-  const tracksByPitch = [...eventsByTrack.entries()]
-    .map(([trackIndex, values]) => ({
-      trackIndex,
-      average: values.reduce((sum, value) => sum + value, 0) / values.length
-    }))
-    .sort((a, b) => a.average - b.average);
-  const staffByTrack = new Map();
-  tracksByPitch.forEach(({ trackIndex, average }, index) => {
-    const staff = tracksByPitch.length === 1
-      ? (average < 60 ? "bass" : "treble")
-      : (index < tracksByPitch.length / 2 ? "bass" : "treble");
-    staffByTrack.set(trackIndex, staff);
+  return {
+    midi: event.midi,
+    step: event.step,
+    octave: event.octave,
+    accidental: event.alter === keyAlter ? "" : (writtenAccidental || "n"),
+    keyAccidental: event.alter === keyAlter ? keyAccidental : "",
+    staff: event.staff === 1
+      ? "treble"
+      : event.staff === 2 ? "bass" : (event.midi < 60 ? "bass" : "treble")
+  };
+}
+
+function convertMusicXmlToTargets(score) {
+  const keyValue = keyValueForMidiSignature(score.sharpsFlats);
+  const beatValue = Math.min(16, Math.max(score.denominator, score.smallestType));
+  const targetsPerMeasure = score.numerator * (beatValue / score.denominator);
+  if (!Number.isInteger(targetsPerMeasure)) {
+    throw new Error("The MusicXML meter cannot be represented by the supported note grid");
+  }
+
+  const eventsBySlot = new Map();
+  score.events.forEach((event) => {
+    const slotInMeasure = Math.round(event.onset * (beatValue / 4));
+    if (slotInMeasure < 0 || slotInMeasure >= targetsPerMeasure) return;
+    const slot = (event.measureIndex * targetsPerMeasure) + slotInMeasure;
+    const values = eventsBySlot.get(slot) || [];
+    values.push(event);
+    eventsBySlot.set(slot, values);
   });
 
-  const eventsByBeat = new Map();
-  const ticksPerBeat = midi.division * (4 / denominator);
-  midi.noteEvents.forEach((event) => {
-    const beat = Math.round(event.tick / ticksPerBeat);
-    const events = eventsByBeat.get(beat) || [];
-    events.push(event);
-    eventsByBeat.set(beat, events);
-  });
-  const finalBeat = Math.max(...eventsByBeat.keys());
   const targets = [];
-
-  for (let beat = 0; beat <= finalBeat; beat += 1) {
-    const events = eventsByBeat.get(beat) || [];
-    const uniqueEvents = [...new Map(events.map((event) => [event.midi, event])).values()];
+  const targetCount = score.measureCount * targetsPerMeasure;
+  for (let slot = 0; slot < targetCount; slot += 1) {
+    const events = eventsBySlot.get(slot) || [];
+    const noteEvents = events.filter((event) => !event.rest);
+    const uniqueEvents = [...new Map(noteEvents.map((event) => [`${event.voice}:${event.midi}`, event])).values()];
+    const staffRests = [...new Set(events
+      .filter((event) => event.rest && event.staff)
+      .map((event) => event.staff === 1 ? "treble" : "bass"))];
+    const notationRests = events.filter((event) => event.rest).map((event) => ({
+      staff: event.staff === 1 ? "treble" : "bass",
+      voice: event.voice,
+      duration: event.duration,
+      type: event.type,
+      dots: event.dots,
+      displayKey: event.displayKey
+    }));
     if (!uniqueEvents.length) {
-      targets.push({ rest: true });
+      targets.push(staffRests.length
+        ? { rest: true, staffRests, notationRests }
+        : { rest: true });
       continue;
     }
 
     const notes = uniqueEvents
-      .map((event) => importedNoteForMidi(event.midi, keyValue, staffByTrack.get(event.trackIndex)))
+      .map((event) => ({
+        ...importedNoteForMusicXml(event, keyValue),
+        voice: event.voice,
+        duration: event.duration,
+        type: event.type,
+        dots: event.dots,
+        slurs: event.slurs,
+        ties: event.ties
+      }))
       .sort((a, b) => a.midi - b.midi);
-    targets.push(notes.length === 1 ? notes[0] : { notes, playedMidi: [] });
+    const target = notes.length === 1 ? notes[0] : { notes, playedMidi: [] };
+    if (staffRests.length) target.staffRests = staffRests;
+    if (notationRests.length) target.notationRests = notationRests;
+    targets.push(target);
   }
 
-  return { targets, keyValue, numerator, denominator };
+  return {
+    targets,
+    keyValue,
+    targetsPerMeasure,
+    beatValue,
+    timeSignature: `${score.numerator}/${score.denominator}`
+  };
 }
 
 function firstPlayableTargetIndex(targets, startIndex = 0) {
@@ -493,7 +559,7 @@ function firstPlayableTargetIndex(targets, startIndex = 0) {
 function startImportedPage(pageIndex) {
   const page = state.importedPages && state.importedPages[pageIndex];
   if (!page) {
-    setFeedback("MIDI piece complete", "good");
+    setFeedback("MusicXML piece complete", "good");
     return false;
   }
 
@@ -507,12 +573,36 @@ function startImportedPage(pageIndex) {
 }
 
 function importedTargetInKey(target, keyValue, semitoneOffset) {
-  if (target.rest) return { rest: true };
+  if (target.rest) {
+    return {
+      rest: true,
+      ...(target.staffRests ? { staffRests: [...target.staffRests] } : {}),
+      ...(target.notationRests ? { notationRests: target.notationRests.map((rest) => ({ ...rest })) } : {})
+    };
+  }
 
   const notes = targetNotes(target)
-    .map((note) => importedNoteForMidi(note.midi + semitoneOffset, keyValue, note.staff))
+    .map((note) => {
+      const pitchedNote = semitoneOffset === 0 && keyValue === state.importedOriginalKey
+        ? { ...note }
+        : importedNoteForMidi(note.midi + semitoneOffset, keyValue, note.staff);
+      return {
+        ...pitchedNote,
+        voice: note.voice,
+        duration: note.duration,
+        type: note.type,
+        dots: note.dots,
+        slurs: note.slurs?.map((slur) => ({ ...slur })),
+        ties: note.ties?.map((tie) => ({ ...tie }))
+      };
+    })
     .sort((a, b) => a.midi - b.midi);
-  return notes.length === 1 ? notes[0] : { notes, playedMidi: [] };
+  const transposedTarget = notes.length === 1 ? notes[0] : { notes, playedMidi: [] };
+  if (target.staffRests) transposedTarget.staffRests = [...target.staffRests];
+  if (target.notationRests) {
+    transposedTarget.notationRests = target.notationRests.map((rest) => ({ ...rest }));
+  }
+  return transposedTarget;
 }
 
 function rebuildImportedPages(keyValue, feedbackMessage) {
@@ -536,43 +626,43 @@ function rebuildImportedPages(keyValue, feedbackMessage) {
   state.importedPageIndex = -1;
   state.nextNotes = [];
   state.nextKey = null;
-  els.midiFileStatus.textContent = `${state.importedFileName}.mid · ${keyName(keyValue)} · ${pages.length} score ${pages.length === 1 ? "page" : "pages"}`;
+  els.musicXmlFileStatus.textContent = `${state.importedFileName}.xml · ${keyName(keyValue)} · ${pages.length} score ${pages.length === 1 ? "page" : "pages"}`;
   setFeedback(feedbackMessage, "good");
   startImportedPage(0);
 }
 
-function importMidiArrayBuffer(arrayBuffer, fileName) {
-  const midi = readMidiFile(arrayBuffer);
-  const converted = convertMidiToTargets(midi);
-  state.importedFileName = fileName.replace(/\.(mid|midi)$/i, "");
+function importMusicXml(xmlText, fileName) {
+  const score = readMusicXml(xmlText);
+  const converted = convertMusicXmlToTargets(score);
+  state.importedFileName = fileName.replace(/\.(musicxml|xml)$/i, "");
   state.importedSourceTargets = converted.targets;
   state.importedOriginalKey = converted.keyValue;
-  state.beatsPerMeasure = converted.numerator;
-  state.beatValue = converted.denominator;
-  state.timeSignature = `${converted.numerator}/${converted.denominator}`;
+  state.beatsPerMeasure = converted.targetsPerMeasure;
+  state.beatValue = converted.beatValue;
+  state.timeSignature = converted.timeSignature;
   els.rangeSelect.value = "grand";
   els.keySelect.value = converted.keyValue;
   rebuildImportedPages(converted.keyValue, `Loaded ${fileName}`);
 }
 
-async function loadMidiFile(file) {
+async function loadMusicXmlFile(file) {
   if (!file) return;
   try {
-    importMidiArrayBuffer(await file.arrayBuffer(), file.name);
+    importMusicXml(await file.text(), file.name);
   } catch (error) {
-    els.midiFileStatus.textContent = "MIDI import failed";
-    setFeedback(error.message || "Could not import MIDI file", "bad");
+    els.musicXmlFileStatus.textContent = "MusicXML import failed";
+    setFeedback(error.message || "Could not import MusicXML file", "bad");
   }
 }
 
-function loadIncludedMidi() {
+async function loadIncludedMusicXml() {
   try {
-    const binary = atob(INCLUDED_MIDI_BASE64);
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    importMidiArrayBuffer(bytes.buffer, INCLUDED_MIDI_FILE);
+    const response = await fetch(INCLUDED_MUSICXML_FILE);
+    if (!response.ok) throw new Error(`Could not load ${INCLUDED_MUSICXML_FILE}`);
+    importMusicXml(await response.text(), INCLUDED_MUSICXML_FILE);
   } catch (error) {
-    els.midiFileStatus.textContent = "Included MIDI could not be decoded";
-    setFeedback(error.message || "Could not decode included MIDI", "bad");
+    els.musicXmlFileStatus.textContent = "Included MusicXML could not be loaded";
+    setFeedback(error.message || "Could not load included MusicXML", "bad");
   }
 }
 
@@ -672,7 +762,7 @@ function makeRound(options = {}) {
   state.beatsPerMeasure = BEATS_PER_MEASURE;
   state.beatValue = 4;
   state.timeSignature = "4/4";
-  els.midiFileStatus.textContent = "Generated exercises";
+  els.musicXmlFileStatus.textContent = "Generated exercises";
 
   if (!usePrepared || !state.nextNotes.length || state.nextKey !== els.keySelect.value) {
     state.notes = makeNotes();
@@ -797,6 +887,9 @@ function makeVexTarget(target, index, staff, currentIndex) {
   const VF = window.VexFlow;
   const duration = vexDurationForBeatValue(state.beatValue);
   if (target && target.rest) {
+    if (target.staffRests && !target.staffRests.includes(staff)) {
+      return new VF.GhostNote(duration);
+    }
     return new VF.StaveNote({
       clef: staff,
       keys: [staff === "bass" ? "d/3" : "b/4"],
@@ -809,6 +902,13 @@ function makeVexTarget(target, index, staff, currentIndex) {
     .sort((a, b) => a.midi - b.midi);
 
   if (!notesInStaff.length) {
+    if (target?.staffRests?.includes(staff)) {
+      return new VF.StaveNote({
+        clef: staff,
+        keys: [staff === "bass" ? "d/3" : "b/4"],
+        duration: `${duration}r`
+      });
+    }
     return new VF.GhostNote(duration);
   }
 
@@ -827,6 +927,196 @@ function makeVexTarget(target, index, staff, currentIndex) {
 
   staveNote.setStyle(noteStyleForIndex(index, currentIndex, target));
   return staveNote;
+}
+
+function makeBeamsForMeasure(staveNotes) {
+  const VF = window.VexFlow;
+  if (!VF.Beam || state.beatValue < 8) return [];
+
+  const [numerator, denominator] = state.timeSignature.split("/").map(Number);
+  const slotsPerWrittenBeat = state.beatValue / denominator;
+  const slotsPerBeam = denominator === 8 && numerator > 3 && numerator % 3 === 0
+    ? slotsPerWrittenBeat * 3
+    : slotsPerWrittenBeat;
+  if (!Number.isInteger(slotsPerBeam) || slotsPerBeam < 1) return [];
+
+  const beams = [];
+  for (let start = 0; start < staveNotes.length; start += slotsPerBeam) {
+    const beatNotes = staveNotes.slice(start, start + slotsPerBeam);
+    let group = [];
+    const finishGroup = () => {
+      if (group.length > 1) {
+        const beam = new VF.Beam(group, true);
+        group.forEach((note) => note.setStemLength(45));
+        beams.push(beam);
+      }
+      group = [];
+    };
+
+    beatNotes.forEach((note) => {
+      const isBeamableNote = note.getCategory?.() === "StaveNote" && !note.isRest?.();
+      if (isBeamableNote) group.push(note);
+      else finishGroup();
+    });
+    finishGroup();
+  }
+  return beams;
+}
+
+function vexDurationForMusicXmlType(type) {
+  return ({ whole: "w", half: "h", quarter: "q", eighth: "8", "16th": "16" })[type]
+    || vexDurationForBeatValue(state.beatValue);
+}
+
+function makeImportedStaffVoices(
+  measureTargets, targetOffset, staff, stave, currentIndex, notationEndpoints, systemIndex
+) {
+  const VF = window.VexFlow;
+  const voicesInMeasure = new Set();
+  measureTargets.forEach((target) => {
+    targetNotes(target)
+      .filter((note) => note.staff === staff && note.voice)
+      .forEach((note) => voicesInMeasure.add(note.voice));
+    (target?.notationRests || [])
+      .filter((rest) => rest.staff === staff)
+      .forEach((rest) => voicesInMeasure.add(rest.voice));
+  });
+  if (!voicesInMeasure.size) voicesInMeasure.add("1");
+
+  return [...voicesInMeasure].map((voiceId) => {
+    const staveNotes = [];
+    let slot = 0;
+
+    while (slot < measureTargets.length) {
+      const target = measureTargets[slot];
+      const notes = targetNotes(target)
+        .filter((note) => note.staff === staff && note.voice === voiceId)
+        .sort((a, b) => a.midi - b.midi);
+      const rest = (target?.notationRests || [])
+        .find((event) => event.staff === staff && event.voice === voiceId);
+      const event = notes[0] || rest;
+
+      if (!event) {
+        staveNotes.push(new VF.GhostNote(vexDurationForBeatValue(state.beatValue)));
+        slot += 1;
+        continue;
+      }
+
+      const dots = event.dots || 0;
+      const duration = `${vexDurationForMusicXmlType(event.type)}${"d".repeat(dots)}${rest ? "r" : ""}`;
+      const staveNote = new VF.StaveNote({
+        clef: staff,
+        keys: rest
+          ? [rest.displayKey || (staff === "bass" ? "d/3" : "b/4")]
+          : notes.map(vexKey),
+        duration,
+        autoStem: true
+      });
+
+      if (!rest) {
+        notes.forEach((note, noteIndex) => {
+          if (note.accidental) staveNote.addModifier(new VF.Accidental(note.accidental), noteIndex);
+          if (note.slurs?.length || note.ties?.length) {
+            notationEndpoints.push({
+              staveNote,
+              stave,
+              systemIndex,
+              noteIndex,
+              slurs: note.slurs || [],
+              ties: note.ties || []
+            });
+          }
+        });
+        staveNote.setStyle(noteStyleForIndex(targetOffset + slot, currentIndex, target));
+      }
+      for (let dot = 0; dot < dots; dot += 1) {
+        VF.Dot.buildAndAttach([staveNote], { all: true });
+      }
+      staveNotes.push(staveNote);
+
+      const durationSlots = Math.max(1, Math.round((event.duration || (4 / state.beatValue)) * state.beatValue / 4));
+      slot += durationSlots;
+    }
+
+    const [numerator, denominator] = state.timeSignature.split("/").map(Number);
+    const beamGroup = denominator === 8 && numerator > 3 && numerator % 3 === 0
+      ? new VF.Fraction(3, 8)
+      : new VF.Fraction(1, denominator);
+    const beams = VF.Beam.generateBeams(staveNotes, { groups: [beamGroup] });
+    beams.forEach((beam) => beam.getNotes().forEach((note) => note.setStemLength(45)));
+    const voice = new VF.Voice({ num_beats: state.beatsPerMeasure, beat_value: state.beatValue })
+      .setStrict(false)
+      .addTickables(staveNotes);
+
+    return { voice, stave, beams, staff };
+  });
+}
+
+function drawMusicXmlCurves(context, endpoints) {
+  const VF = window.VexFlow;
+  const pendingSlurs = new Map();
+  const pendingTies = new Map();
+
+  const drawSlur = (start, stop, placement = "") => {
+    const options = { invert: placement === "below" };
+    if (start && stop && start.systemIndex !== stop.systemIndex) {
+      new VF.Curve(start.staveNote, null, options).setContext(context).draw();
+      new VF.Curve(null, stop.staveNote, options).setContext(context).draw();
+    } else {
+      new VF.Curve(start?.staveNote || null, stop?.staveNote || null, options)
+        .setContext(context)
+        .draw();
+    }
+  };
+
+  const drawTie = (start, stop) => {
+    const makeTie = (from, to) => new VF.StaveTie({
+      firstNote: from?.staveNote || null,
+      lastNote: to?.staveNote || null,
+      firstIndexes: from ? [from.noteIndex] : [],
+      lastIndexes: to ? [to.noteIndex] : []
+    }).setContext(context).draw();
+
+    if (start && stop && start.systemIndex !== stop.systemIndex) {
+      makeTie(start, null);
+      makeTie(null, stop);
+    } else {
+      makeTie(start, stop);
+    }
+  };
+
+  endpoints.forEach((endpoint) => {
+    endpoint.slurs.forEach((slur) => {
+      if (slur.type === "stop" || slur.type === "continue") {
+        const start = pendingSlurs.get(slur.id);
+        if (start) {
+          drawSlur(start.endpoint, endpoint, start.placement || slur.placement);
+          pendingSlurs.delete(slur.id);
+        } else if (slur.type === "stop") {
+          drawSlur(null, endpoint, slur.placement);
+        }
+      }
+      if (slur.type === "start" || slur.type === "continue") {
+        pendingSlurs.set(slur.id, { endpoint, placement: slur.placement });
+      }
+    });
+
+    endpoint.ties.forEach((tie) => {
+      if (tie.type === "stop") {
+        const start = pendingTies.get(tie.id);
+        if (start) {
+          drawTie(start, endpoint);
+          pendingTies.delete(tie.id);
+        } else {
+          drawTie(null, endpoint);
+        }
+      }
+      if (tie.type === "start") pendingTies.set(tie.id, endpoint);
+    });
+  });
+
+  pendingSlurs.forEach(({ endpoint, placement }) => drawSlur(endpoint, null, placement));
+  pendingTies.forEach((endpoint) => drawTie(endpoint, null));
 }
 
 function addStaveConnectors(context, trebleStave, bassStave, isSystemStart) {
@@ -862,8 +1152,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   const height = 1280;
   const pageMargin = 18;
   const systemWidth = width - (pageMargin * 2);
-  const firstMeasureWidth = systemWidth * 0.28;
-  const otherMeasureWidth = (systemWidth - firstMeasureWidth) / (MEASURES_PER_SYSTEM - 1);
+  const measureWidth = systemWidth / MEASURES_PER_SYSTEM;
 
   container.innerHTML = "";
   container.style.minHeight = `${height}px`;
@@ -873,6 +1162,7 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
 
   const context = renderer.getContext();
   context.setBackgroundFillStyle("#fffdf8");
+  const notationEndpoints = [];
 
   const makeStave = (clef, x, y, staveWidth, isSystemStart, isScoreStart) => {
     const stave = new VF.Stave(x, y, staveWidth);
@@ -894,7 +1184,6 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     for (let measureIndex = 0; measureIndex < MEASURES_PER_SYSTEM; measureIndex += 1) {
       const isSystemStart = measureIndex === 0;
       const isScoreStart = systemIndex === 0 && isSystemStart;
-      const measureWidth = isSystemStart ? firstMeasureWidth : otherMeasureWidth;
       const trebleStave = makeStave(
         "treble", measureX, trebleY, measureWidth, isSystemStart, isScoreStart
       );
@@ -910,29 +1199,49 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
         { clef: "treble", stave: trebleStave },
         { clef: "bass", stave: bassStave }
       ];
-      const voices = staves.map(({ clef, stave }) => {
+      const voices = state.importedPages
+        ? staves.flatMap(({ clef, stave }) => (
+          makeImportedStaffVoices(
+            measureTargets,
+            targetOffset,
+            clef,
+            stave,
+            currentIndex,
+            notationEndpoints,
+            systemIndex
+          )
+        ))
+        : staves.map(({ clef, stave }) => {
         const staveNotes = measureTargets.map((target, index) => (
           makeVexTarget(target, targetOffset + index, clef, currentIndex)
         ));
+        const beams = makeBeamsForMeasure(staveNotes);
         const voice = new VF.Voice({ num_beats: state.beatsPerMeasure, beat_value: state.beatValue })
           .setStrict(false)
           .addTickables(staveNotes);
 
-        return { voice, stave };
-      });
+          return { voice, stave, beams, staff: clef };
+        });
       const vexVoices = voices.map(({ voice }) => voice);
       const noteAreaWidth = Math.min(
         ...staves.map(({ stave }) => stave.getNoteEndX() - stave.getNoteStartX())
       ) - 12;
 
-      new VF.Formatter()
-        .joinVoices(vexVoices)
-        .format(vexVoices, noteAreaWidth);
-      voices.forEach(({ voice, stave }) => voice.draw(context, stave));
+      const formatter = new VF.Formatter();
+      staves.forEach(({ clef }) => {
+        formatter.joinVoices(voices.filter(({ staff }) => staff === clef).map(({ voice }) => voice));
+      });
+      formatter.format(vexVoices, noteAreaWidth);
+      voices.forEach(({ voice, stave, beams }) => {
+        voice.draw(context, stave);
+        beams.forEach((beam) => beam.setContext(context).draw());
+      });
 
       measureX += measureWidth;
     }
   }
+
+  if (state.importedPages) drawMusicXmlCurves(context, notationEndpoints);
 }
 
 function drawScore() {
@@ -1141,8 +1450,8 @@ els.connectMidi.addEventListener("click", connectMidi);
 els.toggleControls.addEventListener("click", () => setControlsCollapsed(true));
 els.showControls.addEventListener("click", () => setControlsCollapsed(false));
 els.midiInputs.addEventListener("change", selectMidiInput);
-els.midiFile.addEventListener("change", () => loadMidiFile(els.midiFile.files[0]));
-els.loadIncludedMidi.addEventListener("click", loadIncludedMidi);
+els.musicXmlFile.addEventListener("change", () => loadMusicXmlFile(els.musicXmlFile.files[0]));
+els.loadIncludedMusicXml.addEventListener("click", loadIncludedMusicXml);
 els.newRound.addEventListener("click", () => startNextRound({ countKeyRound: true }));
 els.demoMode.addEventListener("click", toggleDemoMode);
 els.rangeSelect.addEventListener("change", () => makeRound({ usePrepared: false }));

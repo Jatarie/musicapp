@@ -70,7 +70,7 @@ input[type="file"] {
   font-size: 0.84rem;
 }
 
-.midi-import button {
+.musicxml-import button {
   width: 100%;
   margin-top: 8px;
 }

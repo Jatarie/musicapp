@@ -1,4 +1,4 @@
-# Sightline MIDI Reader
+# Sightline Music Reader
 
 A browser-based music sight-reading trainer that connects to a MIDI keyboard, displays generated sheet music, and checks whether the played note matches the highlighted note.
 
@@ -33,9 +33,9 @@ GitHub Pages serves over HTTPS, so Web MIDI can request device access there in s
 ## Features
 
 - Treble, bass, and grand-staff practice ranges
-- Four systems of four measures per score page (4/4 for generated rounds; imported meter for MIDI pieces)
-- Standard MIDI file import with meter/key detection, chord grouping, rests, and score pagination
-- Included Gymnopédie No. 1 MIDI exercise
+- Four systems of three measures per score page (4/4 for generated rounds; imported meter for MusicXML pieces)
+- MusicXML import with meter/key detection, voices, chord grouping, rests, and score pagination
+- Included Bach Prelude in C major MusicXML exercise
 - Configurable melodic distance between consecutive notes
 - Major keys with rendered key signatures
 - Optional extra chromatic notes
