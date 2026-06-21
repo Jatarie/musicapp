@@ -82,8 +82,11 @@ const STAFF_RANGES = {
   bass: { min: 26, max: 74 }
 };
 const SYSTEMS_PER_ROUND = 4;
-const MEASURES_PER_SYSTEM = 3;
+const MEASURES_PER_SYSTEM = 2;
 const BEATS_PER_MEASURE = 4;
+const NOTE_SCALE = 1.0;
+// Keep ledger lines inside the notehead bounds so adjacent notes retain a visible gap.
+const LEDGER_LINE_OVERHANG = 0.00;
 const TARGETS_PER_ROUND = SYSTEMS_PER_ROUND * MEASURES_PER_SYSTEM * BEATS_PER_MEASURE;
 const INCLUDED_MUSICXML_FILE = "prelude-in-c-major.xml";
 const KEY_TONICS = {
@@ -909,6 +912,14 @@ function refreshRenderedTargetStyle(index) {
   });
 }
 
+function makeStaveNote(options) {
+  const staveNote = new window.VexFlow.StaveNote(options);
+  staveNote.setFontSize(staveNote.fontSizeInPoints * NOTE_SCALE);
+  staveNote.reset();
+  staveNote.buildFlag();
+  return staveNote;
+}
+
 function makeVexTarget(target, index, staff, currentIndex) {
   const VF = window.VexFlow;
   const duration = vexDurationForBeatValue(state.beatValue);
@@ -916,7 +927,7 @@ function makeVexTarget(target, index, staff, currentIndex) {
     if (target.staffRests && !target.staffRests.includes(staff)) {
       return new VF.GhostNote(duration);
     }
-    return new VF.StaveNote({
+    return makeStaveNote({
       clef: staff,
       keys: [staff === "bass" ? "d/3" : "b/4"],
       duration: `${duration}r`
@@ -929,7 +940,7 @@ function makeVexTarget(target, index, staff, currentIndex) {
 
   if (!notesInStaff.length) {
     if (target?.staffRests?.includes(staff)) {
-      return new VF.StaveNote({
+      return makeStaveNote({
         clef: staff,
         keys: [staff === "bass" ? "d/3" : "b/4"],
         duration: `${duration}r`
@@ -938,11 +949,12 @@ function makeVexTarget(target, index, staff, currentIndex) {
     return new VF.GhostNote(duration);
   }
 
-  const staveNote = new VF.StaveNote({
+  const staveNote = makeStaveNote({
     clef: staff,
     keys: notesInStaff.map(vexKey),
     duration,
-    autoStem: true
+    autoStem: true,
+    strokePx: LEDGER_LINE_OVERHANG
   });
 
   notesInStaff.forEach((note, noteIndex) => {
@@ -1067,13 +1079,14 @@ function makeImportedStaffVoices(
 
       const dots = event.dots || 0;
       const duration = `${vexDurationForMusicXmlType(event.type)}${"d".repeat(dots)}${rest ? "r" : ""}`;
-      const staveNote = new VF.StaveNote({
+      const staveNote = makeStaveNote({
         clef: staff,
         keys: rest
           ? [rest.displayKey || (staff === "bass" ? "d/3" : "b/4")]
           : notes.map(vexKey),
         duration,
-        autoStem: true
+        autoStem: true,
+        strokePx: LEDGER_LINE_OVERHANG
       });
 
       if (!rest) {
