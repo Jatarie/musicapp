@@ -1152,7 +1152,6 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
   const height = 1280;
   const pageMargin = 18;
   const systemWidth = width - (pageMargin * 2);
-  const measureWidth = systemWidth / MEASURES_PER_SYSTEM;
 
   container.innerHTML = "";
   container.style.minHeight = `${height}px`;
@@ -1176,14 +1175,26 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     return stave;
   };
 
+  const startingSymbolWidth = (isScoreStart) => Math.max(...["treble", "bass"].map((clef) => {
+    const plainStave = new VF.Stave(0, 0, systemWidth);
+    const decoratedStave = new VF.Stave(0, 0, systemWidth)
+      .addClef(clef)
+      .addKeySignature(keyValue);
+    if (isScoreStart) decoratedStave.addTimeSignature(state.timeSignature);
+    return decoratedStave.getNoteStartX() - plainStave.getNoteStartX();
+  }));
+
   for (let systemIndex = 0; systemIndex < SYSTEMS_PER_ROUND; systemIndex += 1) {
     const trebleY = 74 + (systemIndex * systemSpacing);
     const bassY = trebleY + 110;
+    const symbolWidth = startingSymbolWidth(systemIndex === 0);
+    const noteSpaceWidth = (systemWidth - symbolWidth) / MEASURES_PER_SYSTEM;
     let measureX = pageMargin;
 
     for (let measureIndex = 0; measureIndex < MEASURES_PER_SYSTEM; measureIndex += 1) {
       const isSystemStart = measureIndex === 0;
       const isScoreStart = systemIndex === 0 && isSystemStart;
+      const measureWidth = noteSpaceWidth + (isSystemStart ? symbolWidth : 0);
       const trebleStave = makeStave(
         "treble", measureX, trebleY, measureWidth, isSystemStart, isScoreStart
       );
