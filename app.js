@@ -968,8 +968,44 @@ function vexDurationForMusicXmlType(type) {
     || vexDurationForBeatValue(state.beatValue);
 }
 
+function accidentalDisplayForSystem(systemTargets, keyValue) {
+  const displays = new WeakMap();
+  const activeAccidentals = new Map();
+  const key = KEYS[keyValue] || KEYS.C;
+
+  systemTargets.forEach((target) => {
+    targetNotes(target).forEach((note) => {
+      const keyAccidental = key.steps.includes(note.step)
+        ? (key.type === "sharp" ? "#" : "b")
+        : "";
+      const writtenAccidental = note.accidental === "n"
+        ? ""
+        : (note.accidental || note.keyAccidental || keyAccidental);
+      const pitchKey = `${note.staff}:${note.step}:${note.octave}`;
+      const activeAccidental = activeAccidentals.has(pitchKey)
+        ? activeAccidentals.get(pitchKey)
+        : keyAccidental;
+
+      displays.set(
+        note,
+        writtenAccidental === activeAccidental ? "" : (writtenAccidental || "n")
+      );
+      activeAccidentals.set(pitchKey, writtenAccidental);
+    });
+  });
+
+  return displays;
+}
+
 function makeImportedStaffVoices(
-  measureTargets, targetOffset, staff, stave, currentIndex, notationEndpoints, systemIndex
+  measureTargets,
+  targetOffset,
+  staff,
+  stave,
+  currentIndex,
+  notationEndpoints,
+  systemIndex,
+  accidentalDisplays
 ) {
   const VF = window.VexFlow;
   const voicesInMeasure = new Set();
@@ -1015,7 +1051,8 @@ function makeImportedStaffVoices(
 
       if (!rest) {
         notes.forEach((note, noteIndex) => {
-          if (note.accidental) staveNote.addModifier(new VF.Accidental(note.accidental), noteIndex);
+          const accidental = accidentalDisplays.get(note);
+          if (accidental) staveNote.addModifier(new VF.Accidental(accidental), noteIndex);
           if (note.slurs?.length || note.ties?.length) {
             notationEndpoints.push({
               staveNote,
@@ -1070,12 +1107,18 @@ function drawMusicXmlCurves(context, endpoints) {
   };
 
   const drawTie = (start, stop) => {
-    const makeTie = (from, to) => new VF.StaveTie({
-      firstNote: from?.staveNote || null,
-      lastNote: to?.staveNote || null,
-      firstIndexes: from ? [from.noteIndex] : [],
-      lastIndexes: to ? [to.noteIndex] : []
-    }).setContext(context).draw();
+    const makeTie = (from, to) => {
+      const stemDirection = (from?.staveNote || to?.staveNote).getStemDirection();
+      new VF.StaveTie({
+        firstNote: from?.staveNote || null,
+        lastNote: to?.staveNote || null,
+        firstIndexes: from ? [from.noteIndex] : [],
+        lastIndexes: to ? [to.noteIndex] : []
+      })
+        .setDirection(-stemDirection)
+        .setContext(context)
+        .draw();
+    };
 
     if (start && stop && start.systemIndex !== stop.systemIndex) {
       makeTie(start, null);
@@ -1189,6 +1232,12 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
     const bassY = trebleY + 110;
     const symbolWidth = startingSymbolWidth(systemIndex === 0);
     const noteSpaceWidth = (systemWidth - symbolWidth) / MEASURES_PER_SYSTEM;
+    const systemTargetOffset = systemIndex * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+    const systemTargets = notes.slice(
+      systemTargetOffset,
+      systemTargetOffset + (MEASURES_PER_SYSTEM * state.beatsPerMeasure)
+    );
+    const accidentalDisplays = accidentalDisplayForSystem(systemTargets, keyValue);
     let measureX = pageMargin;
 
     for (let measureIndex = 0; measureIndex < MEASURES_PER_SYSTEM; measureIndex += 1) {
@@ -1219,7 +1268,8 @@ function drawVexScore(container, notes, currentIndex, keyValue) {
             stave,
             currentIndex,
             notationEndpoints,
-            systemIndex
+            systemIndex,
+            accidentalDisplays
           )
         ))
         : staves.map(({ clef, stave }) => {
