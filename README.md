@@ -35,6 +35,7 @@ Timing starts with the first played note and ends when the final target in the p
 ## Features
 
 - MusicXML score library and local MusicXML import
+- Full-score viewing without practice page breaks
 - One-click practice in a random transposed key
 - Four systems of two measures per page
 - Automatic page progression

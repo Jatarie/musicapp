@@ -47,7 +47,7 @@
 
         <div id="score" class="score relative min-h-80 overflow-x-auto border border-slate-200 bg-white [&_svg]:h-auto [&_svg]:min-w-3xl [&_svg]:w-full [body.player-active_&]:min-h-screen [body.player-active_&]: [body.player-active_&]:border-0" role="img" aria-label="MusicXML score"></div>
 
-        <div class="player-footer mt-3 flex items-center gap-2 max-sm:flex-col max-sm:items-stretch [body.player-active_&]:hidden">
+        <div class="player-footer mt-3 flex items-center gap-2 max-sm:flex-col max-sm:items-stretch [body.player-active_&]:hidden" id="playerFooter">
           <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" id="restartPiece" type="button">Restart piece</button>
           <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" id="demoMode" type="button">Use computer keys</button>
           <span class="keyboard-hint text-sm text-slate-500" id="keyboardHint" hidden>Press Space to play the highlighted note or chord.</span>

@@ -8,7 +8,11 @@ const RENDER_TIES = true;
 const LEDGER_LINE_OVERHANG = 0.00;
 // A sixteenth rest spans several staff positions. Keep its anchor at least an
 // octave from a simultaneous notehead in another voice.
-const REST_NOTE_CLEARANCE_STEPS = 7;
+const REST_NOTE_CLEARANCE_STEPS = 5;
+// A sixteenth-rest glyph can overlap a notehead through a diatonic fourth.
+const REST_NOTE_OVERLAP_STEPS = 5;
+// Positive screen y runs downward; one diatonic step is half a staff space.
+const DYNAMIC_REST_Y_OFFSET_STEPS = -1;
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
@@ -59,6 +63,8 @@ const state = {
   importedPages: null,
   importedSourceTargets: null,
   importedPageIndex: -1,
+  importedMeasureCount: 0,
+  fullScoreView: false,
   keyValue: "C",
   totalQuarterNoteBeats: 0,
   activeScore: null,
@@ -72,6 +78,7 @@ let renderedTargetNotes = new Map();
 const els = {
   libraryView: document.querySelector("#libraryView"),
   playerView: document.querySelector("#playerView"),
+  playerFooter: document.querySelector("#playerFooter"),
   scoreLibrary: document.querySelector("#scoreLibrary"),
   importScore: document.querySelector("#importScore"),
   backToLibrary: document.querySelector("#backToLibrary"),
@@ -215,10 +222,12 @@ function renderScoreLibrary() {
       </dl>
       <div class="score-actions flex flex-wrap gap-2 justify-self-start">
         <button class="bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button" data-action="play">Play score</button>
+        <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" type="button" data-action="view">View score</button>
         <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" type="button" data-action="random-key">Play score in random key</button>
       </div>
     `;
     card.querySelector('[data-action="play"]').addEventListener("click", () => loadLibraryScore(score));
+    card.querySelector('[data-action="view"]').addEventListener("click", () => loadLibraryScore(score, false, true));
     card.querySelector('[data-action="random-key"]').addEventListener("click", () => loadLibraryScore(score, true));
     els.scoreLibrary.append(card);
   });
@@ -226,14 +235,15 @@ function renderScoreLibrary() {
 
 function showLibrary() {
   stopPerformanceTimer();
+  state.fullScoreView = false;
   document.body.classList.remove("player-active");
   els.playerView.hidden = true;
   els.libraryView.hidden = false;
   renderScoreLibrary();
 }
 
-function showPlayer() {
-  document.body.classList.add("player-active");
+function showPlayer(immersive = true) {
+  document.body.classList.toggle("player-active", immersive);
   els.libraryView.hidden = true;
   els.playerView.hidden = false;
 }
@@ -632,6 +642,18 @@ function startImportedPage(pageIndex) {
   return true;
 }
 
+function startFullScoreView() {
+  state.importedPages = null;
+  state.importedPageIndex = -1;
+  state.notes = state.importedSourceTargets || [];
+  state.current = -1;
+  state.fullScoreView = true;
+  els.playerFooter.hidden = true;
+  showPlayer(false);
+  updateLabels();
+  drawScore();
+}
+
 function rebuildImportedPages(feedbackMessage) {
   const targets = state.importedSourceTargets;
   const pageSize = SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
@@ -644,12 +666,14 @@ function rebuildImportedPages(feedbackMessage) {
 
   state.importedPages = pages;
   state.importedPageIndex = -1;
+  state.fullScoreView = false;
+  els.playerFooter.hidden = false;
   resetPerformance();
   setFeedback(feedbackMessage, "good");
   startImportedPage(0);
 }
 
-function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null) {
+function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null, options = {}) {
   const originalScore = readMusicXml(xmlText);
   const score = targetSharpsFlats === null
     ? originalScore
@@ -660,6 +684,7 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null) {
     : `${scoreMeta.title} — ${converted.keyValue}`;
   state.activeScore = { ...scoreMeta, displayTitle };
   state.importedSourceTargets = converted.targets;
+  state.importedMeasureCount = converted.measureCount;
   state.keyValue = converted.keyValue;
   state.totalQuarterNoteBeats = converted.measureCount
     * converted.numerator
@@ -669,8 +694,14 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null) {
   state.slotsPerQuarter = converted.slotsPerQuarter;
   state.timeSignature = converted.timeSignature;
   els.pieceTitle.textContent = displayTitle;
-  showPlayer();
-  rebuildImportedPages("Ready to play");
+  if (options.fullScore) {
+    resetPerformance();
+    setFeedback("Full score");
+    startFullScoreView();
+  } else {
+    showPlayer();
+    rebuildImportedPages("Ready to play");
+  }
 }
 
 async function loadMusicXmlFile(file) {
@@ -690,8 +721,8 @@ async function loadMusicXmlFile(file) {
   }
 }
 
-async function loadLibraryScore(scoreMeta, useRandomKey = false) {
-  showPlayer();
+async function loadLibraryScore(scoreMeta, useRandomKey = false, fullScore = false) {
+  showPlayer(!fullScore);
   els.pieceTitle.textContent = scoreMeta.title;
   setFeedback("Loading score");
   try {
@@ -702,7 +733,7 @@ async function loadLibraryScore(scoreMeta, useRandomKey = false) {
     const targetSharpsFlats = useRandomKey
       ? randomKeySignatureExcluding(originalScore.sharpsFlats)
       : null;
-    importMusicXml(xmlText, scoreMeta, targetSharpsFlats);
+    importMusicXml(xmlText, scoreMeta, targetSharpsFlats, { fullScore });
   } catch (error) {
     setFeedback(error.message || "Could not load MusicXML", "bad");
   }
@@ -728,6 +759,10 @@ function diatonicPositionForVexKey(key) {
 function vexKeyForDiatonicPosition(position) {
   const stepIndex = ((position % 7) + 7) % 7;
   return `${DIATONIC_STEPS[stepIndex].toLowerCase()}/${Math.floor(position / 7)}`;
+}
+
+function vexKeyForDynamicRestPosition(position) {
+  return vexKeyForDiatonicPosition(position - DYNAMIC_REST_Y_OFFSET_STEPS);
 }
 
 function nearestVoicePosition(measureTargets, slot, staff, voiceId) {
@@ -764,7 +799,7 @@ function collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest) {
     .filter(Number.isFinite);
 
   if (!otherVoicePositions.some(
-    (position) => Math.abs(basePosition - position) < REST_NOTE_CLEARANCE_STEPS
+    (position) => Math.abs(basePosition - position) < REST_NOTE_OVERLAP_STEPS
   )) {
     return vexKeyForDiatonicPosition(basePosition);
   }
@@ -776,11 +811,11 @@ function collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest) {
 
   // Follow the melodic side occupied by this voice. If both voices are on the
   // same line, retain the source rest's side; otherwise take the shorter move.
-  if (basePosition > otherVoiceCenter) return vexKeyForDiatonicPosition(upperPosition);
-  if (basePosition < otherVoiceCenter) return vexKeyForDiatonicPosition(lowerPosition);
-  if (sourcePosition > otherVoiceCenter) return vexKeyForDiatonicPosition(upperPosition);
-  if (sourcePosition < otherVoiceCenter) return vexKeyForDiatonicPosition(lowerPosition);
-  return vexKeyForDiatonicPosition(
+  if (basePosition > otherVoiceCenter) return vexKeyForDynamicRestPosition(upperPosition);
+  if (basePosition < otherVoiceCenter) return vexKeyForDynamicRestPosition(lowerPosition);
+  if (sourcePosition > otherVoiceCenter) return vexKeyForDynamicRestPosition(upperPosition);
+  if (sourcePosition < otherVoiceCenter) return vexKeyForDynamicRestPosition(lowerPosition);
+  return vexKeyForDynamicRestPosition(
     upperPosition - basePosition <= basePosition - lowerPosition ? upperPosition : lowerPosition
   );
 }
@@ -988,6 +1023,7 @@ function makeImportedStaffVoices(
       .forEach((rest) => voicesInMeasure.add(rest.voice));
   });
   if (!voicesInMeasure.size) voicesInMeasure.add("__ghost");
+  const hasMultipleVoices = voicesInMeasure.size > 1;
 
   return [...voicesInMeasure].map((voiceId) => {
     const staveNotes = [];
@@ -1022,11 +1058,12 @@ function makeImportedStaffVoices(
       const stemDirection = event.stemDirection === "down"
         ? VF.Stem.DOWN
         : event.stemDirection === "up" ? VF.Stem.UP : null;
+      const restKey = rest && hasMultipleVoices
+        ? collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest)
+        : rest?.displayKey || (staff === "bass" ? "d/3" : "b/4");
       const staveNote = makeStaveNote({
         clef: staff,
-        keys: rest
-          ? [collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest)]
-          : notes.map(vexKey),
+        keys: rest ? [restKey] : notes.map(vexKey),
         duration,
         autoStem: stemDirection === null,
         ...(stemDirection === null ? {} : { stemDirection }),
@@ -1055,7 +1092,14 @@ function makeImportedStaffVoices(
         VF.Dot.buildAndAttach([staveNote], { all: true });
       }
       staveNotes.push(staveNote);
-      notationCandidates.push({ staveNote, event, slot, voiceId, staff });
+      notationCandidates.push({
+        staveNote,
+        event,
+        slot,
+        voiceId,
+        staff,
+        restLine: rest ? staveNote.getKeyProps()[0].line : null
+      });
 
       const durationSlots = Math.max(
         1,
@@ -1176,10 +1220,11 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
   }
   renderedTargetNotes = new Map();
   const systemCount = options.systemCount || SYSTEMS_PER_PAGE;
+  const measureCount = options.measureCount || systemCount * MEASURES_PER_SYSTEM;
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
-  const height = systemCount === 1 ? 290 : 1280;
+  const height = systemCount === 1 ? 290 : (systemCount * systemSpacing) + 80;
   const pageMargin = 18;
   const systemWidth = width - (pageMargin * 2);
 
@@ -1222,6 +1267,8 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
     let measureX = pageMargin;
 
     for (let measureIndex = 0; measureIndex < MEASURES_PER_SYSTEM; measureIndex += 1) {
+      const measureNumber = (systemIndex * MEASURES_PER_SYSTEM) + measureIndex;
+      if (measureNumber >= measureCount) break;
       const isSystemStart = measureIndex === 0;
       const isScoreStart = systemIndex === 0 && isSystemStart;
       const measureWidth = noteSpaceWidth + (isSystemStart ? symbolWidth : 0);
@@ -1233,7 +1280,6 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
       );
       addStaveConnectors(context, trebleStave, bassStave, isSystemStart);
 
-      const measureNumber = (systemIndex * MEASURES_PER_SYSTEM) + measureIndex;
       const targetOffset = measureNumber * state.beatsPerMeasure;
       const measureTargets = notes.slice(targetOffset, targetOffset + state.beatsPerMeasure);
       const accidentalDisplays = accidentalDisplayForMeasure(measureTargets, keyValue);
@@ -1271,7 +1317,10 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
         formatter.joinVoices(voices.filter(({ staff }) => staff === clef).map(({ voice }) => voice));
       });
       formatter.format(vexVoices, noteAreaWidth);
-      notationCandidates.forEach(({ staveNote, event }) => {
+      notationCandidates.forEach(({ staveNote, event, restLine }) => {
+        // VexFlow also shifts rests during formatting. Restore the position
+        // selected above so a non-overlapping rest remains on its own voice.
+        if (Number.isFinite(restLine)) staveNote.setKeyLine(0, restLine);
         if (event.stemDirection === "up") staveNote.setStemDirection(VF.Stem.UP);
         if (event.stemDirection === "down") staveNote.setStemDirection(VF.Stem.DOWN);
       });
@@ -1286,13 +1335,20 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
     }
   }
 
-  if (state.importedPages && (RENDER_SLURS || RENDER_TIES)) {
+  if (state.importedSourceTargets && (RENDER_SLURS || RENDER_TIES)) {
     drawMusicXmlCurves(context, notationEndpoints);
   }
 }
 
 function drawScore() {
-  drawVexScore(els.score, state.notes, state.current, state.keyValue);
+  if (state.fullScoreView) {
+    drawVexScore(els.score, state.notes, -1, state.keyValue, {
+      systemCount: Math.ceil(state.importedMeasureCount / MEASURES_PER_SYSTEM),
+      measureCount: state.importedMeasureCount
+    });
+  } else {
+    drawVexScore(els.score, state.notes, state.current, state.keyValue);
+  }
   updateNextSystemPreview();
 }
 
@@ -1306,6 +1362,10 @@ function nextSystemPreviewData() {
 
 function updateNextSystemPreview() {
   const existingPreview = els.score.querySelector(".next-system-preview");
+  if (state.fullScoreView) {
+    existingPreview?.remove();
+    return;
+  }
   const finalSystemStart = (SYSTEMS_PER_PAGE - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
   const previewData = state.current >= finalSystemStart ? nextSystemPreviewData() : null;
 
@@ -1330,7 +1390,9 @@ function updateNextSystemPreview() {
 
 function updateLabels() {
   const target = state.notes[state.current];
-  els.pageLabel.textContent = state.importedPages
+  els.pageLabel.textContent = state.fullScoreView
+    ? `Full score · ${state.importedMeasureCount} measures`
+    : state.importedPages
     ? `Page ${state.importedPageIndex + 1} of ${state.importedPages.length}`
     : "Page 1";
   if (state.activeScore) els.pieceTitle.textContent = state.activeScore.displayTitle || state.activeScore.title;
