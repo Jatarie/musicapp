@@ -13,6 +13,11 @@ const REST_NOTE_CLEARANCE_STEPS = 5;
 const REST_NOTE_OVERLAP_STEPS = 5;
 // Positive screen y runs downward; one diatonic step is half a staff space.
 const DYNAMIC_REST_Y_OFFSET_STEPS = -1;
+// Keep multi-voice rests clear of ledger lines below each staff.
+const MULTI_VOICE_REST_FLOOR_KEYS = {
+  treble: "a/4",
+  bass: "c/3"
+};
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
@@ -796,6 +801,13 @@ function vexKeyForDynamicRestPosition(position) {
   return vexKeyForDiatonicPosition(position - DYNAMIC_REST_Y_OFFSET_STEPS);
 }
 
+function clampMultiVoiceRestKey(key, staff) {
+  const floorKey = MULTI_VOICE_REST_FLOOR_KEYS[staff];
+  const position = diatonicPositionForVexKey(key);
+  const floorPosition = diatonicPositionForVexKey(floorKey);
+  return Number.isFinite(position) && position < floorPosition ? floorKey : key;
+}
+
 function nearestVoicePosition(measureTargets, slot, staff, voiceId) {
   let nearestDistance = Infinity;
   let nearestPositions = [];
@@ -832,7 +844,7 @@ function collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest) {
   if (!otherVoicePositions.some(
     (position) => Math.abs(basePosition - position) < REST_NOTE_OVERLAP_STEPS
   )) {
-    return vexKeyForDiatonicPosition(basePosition);
+    return clampMultiVoiceRestKey(vexKeyForDiatonicPosition(basePosition), staff);
   }
 
   const upperPosition = Math.max(...otherVoicePositions) + REST_NOTE_CLEARANCE_STEPS;
@@ -842,13 +854,15 @@ function collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest) {
 
   // Follow the melodic side occupied by this voice. If both voices are on the
   // same line, retain the source rest's side; otherwise take the shorter move.
-  if (basePosition > otherVoiceCenter) return vexKeyForDynamicRestPosition(upperPosition);
-  if (basePosition < otherVoiceCenter) return vexKeyForDynamicRestPosition(lowerPosition);
-  if (sourcePosition > otherVoiceCenter) return vexKeyForDynamicRestPosition(upperPosition);
-  if (sourcePosition < otherVoiceCenter) return vexKeyForDynamicRestPosition(lowerPosition);
-  return vexKeyForDynamicRestPosition(
+  let key;
+  if (basePosition > otherVoiceCenter) key = vexKeyForDynamicRestPosition(upperPosition);
+  else if (basePosition < otherVoiceCenter) key = vexKeyForDynamicRestPosition(lowerPosition);
+  else if (sourcePosition > otherVoiceCenter) key = vexKeyForDynamicRestPosition(upperPosition);
+  else if (sourcePosition < otherVoiceCenter) key = vexKeyForDynamicRestPosition(lowerPosition);
+  else key = vexKeyForDynamicRestPosition(
     upperPosition - basePosition <= basePosition - lowerPosition ? upperPosition : lowerPosition
   );
+  return clampMultiVoiceRestKey(key, staff);
 }
 
 function vexDurationForBeatValue(beatValue) {
