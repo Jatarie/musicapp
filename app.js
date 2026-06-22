@@ -210,9 +210,13 @@ function renderScoreLibrary() {
         <div><dt>Best tempo</dt><dd>${formatTempo(result?.bestTempo)}</dd></div>
         <div><dt>Last tempo</dt><dd>${formatTempo(result?.lastTempo)}</dd></div>
       </dl>
-      <button class="justify-self-start bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button">Play score</button>
+      <div class="score-actions flex flex-wrap gap-2 justify-self-start">
+        <button class="bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button" data-action="play">Play score</button>
+        <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" type="button" data-action="random-key">Play score in random key</button>
+      </div>
     `;
-    card.querySelector("button").addEventListener("click", () => loadLibraryScore(score));
+    card.querySelector('[data-action="play"]').addEventListener("click", () => loadLibraryScore(score));
+    card.querySelector('[data-action="random-key"]').addEventListener("click", () => loadLibraryScore(score, true));
     els.scoreLibrary.append(card);
   });
 }
@@ -456,6 +460,54 @@ function keyValueForMidiSignature(sharpsFlats) {
   return majorKeys[Math.max(0, Math.min(14, sharpsFlats + 7))];
 }
 
+function randomKeySignatureExcluding(sharpsFlats) {
+  // Use one conventional spelling for each pitch class, and exclude enharmonic
+  // equivalents of the source so the random action always changes the pitch.
+  const supportedSignatures = [0, -5, 2, -3, 4, -1, 6, 1, -4, 3, -2, 5];
+  const sourcePitchClass = ((sharpsFlats * 7) % 12 + 12) % 12;
+  const alternatives = supportedSignatures.filter(
+    (fifths) => (((fifths * 7) % 12 + 12) % 12) !== sourcePitchClass
+  );
+  return alternatives[Math.floor(Math.random() * alternatives.length)];
+}
+
+function transposeMusicXmlScore(score, targetSharpsFlats) {
+  const keyTonicSteps = ["C", "G", "D", "A", "E", "B", "F"];
+  const stepNames = ["C", "D", "E", "F", "G", "A", "B"];
+  const naturalSemitones = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const tonicForSignature = (fifths) => keyTonicSteps[((fifths % 7) + 7) % 7];
+  const tonicPitchClass = (fifths) => ((fifths * 7) % 12 + 12) % 12;
+  const sourceTonic = tonicForSignature(score.sharpsFlats);
+  const targetTonic = tonicForSignature(targetSharpsFlats);
+  let semitoneShift = tonicPitchClass(targetSharpsFlats) - tonicPitchClass(score.sharpsFlats);
+  if (semitoneShift > 6) semitoneShift -= 12;
+  if (semitoneShift < -6) semitoneShift += 12;
+
+  const sourceStepIndex = stepNames.indexOf(sourceTonic);
+  const targetStepIndex = stepNames.indexOf(targetTonic);
+  const baseDiatonicShift = ((targetStepIndex - sourceStepIndex) % 7 + 7) % 7;
+  const diatonicShift = [-2, -1, 0, 1, 2]
+    .map((octaves) => baseDiatonicShift + (octaves * 7))
+    .reduce((best, candidate) => (
+      Math.abs((candidate * 12 / 7) - semitoneShift) < Math.abs((best * 12 / 7) - semitoneShift)
+        ? candidate
+        : best
+    ));
+
+  const events = score.events.map((event) => {
+    if (event.rest) return { ...event };
+    const absoluteStep = (event.octave * 7) + stepNames.indexOf(event.step) + diatonicShift;
+    const stepIndex = ((absoluteStep % 7) + 7) % 7;
+    const octave = Math.floor(absoluteStep / 7);
+    const step = stepNames[stepIndex];
+    const midi = event.midi + semitoneShift;
+    const alter = midi - (((octave + 1) * 12) + naturalSemitones[step]);
+    return { ...event, midi, step, octave, alter };
+  });
+
+  return { ...score, events, sharpsFlats: targetSharpsFlats };
+}
+
 function importedNoteForMusicXml(event, keyValue) {
   const key = KEYS[keyValue] || KEYS.C;
   const keyAlter = key.steps.includes(event.step) ? (key.type === "sharp" ? 1 : -1) : 0;
@@ -594,10 +646,16 @@ function rebuildImportedPages(feedbackMessage) {
   startImportedPage(0);
 }
 
-function importMusicXml(xmlText, scoreMeta) {
-  const score = readMusicXml(xmlText);
+function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null) {
+  const originalScore = readMusicXml(xmlText);
+  const score = targetSharpsFlats === null
+    ? originalScore
+    : transposeMusicXmlScore(originalScore, targetSharpsFlats);
   const converted = convertMusicXmlToTargets(score);
-  state.activeScore = scoreMeta;
+  const displayTitle = targetSharpsFlats === null
+    ? scoreMeta.title
+    : `${scoreMeta.title} — ${converted.keyValue}`;
+  state.activeScore = { ...scoreMeta, displayTitle };
   state.importedSourceTargets = converted.targets;
   state.keyValue = converted.keyValue;
   state.totalQuarterNoteBeats = converted.measureCount
@@ -607,7 +665,7 @@ function importMusicXml(xmlText, scoreMeta) {
   state.beatValue = converted.beatValue;
   state.slotsPerQuarter = converted.slotsPerQuarter;
   state.timeSignature = converted.timeSignature;
-  els.pieceTitle.textContent = scoreMeta.title;
+  els.pieceTitle.textContent = displayTitle;
   showPlayer();
   rebuildImportedPages("Ready to play");
 }
@@ -629,14 +687,19 @@ async function loadMusicXmlFile(file) {
   }
 }
 
-async function loadLibraryScore(scoreMeta) {
+async function loadLibraryScore(scoreMeta, useRandomKey = false) {
   showPlayer();
   els.pieceTitle.textContent = scoreMeta.title;
   setFeedback("Loading score");
   try {
     const response = await fetch(scoreMeta.file);
     if (!response.ok) throw new Error(`Could not load ${scoreMeta.file}`);
-    importMusicXml(await response.text(), scoreMeta);
+    const xmlText = await response.text();
+    const originalScore = readMusicXml(xmlText);
+    const targetSharpsFlats = useRandomKey
+      ? randomKeySignatureExcluding(originalScore.sharpsFlats)
+      : null;
+    importMusicXml(xmlText, scoreMeta, targetSharpsFlats);
   } catch (error) {
     setFeedback(error.message || "Could not load MusicXML", "bad");
   }
@@ -1195,7 +1258,7 @@ function updateLabels() {
   els.pageLabel.textContent = state.importedPages
     ? `Page ${state.importedPageIndex + 1} of ${state.importedPages.length}`
     : "Page 1";
-  if (state.activeScore) els.pieceTitle.textContent = state.activeScore.title;
+  if (state.activeScore) els.pieceTitle.textContent = state.activeScore.displayTitle || state.activeScore.title;
   if (!target && state.performanceComplete) setFeedback("Piece complete", "good");
   updatePerformanceDisplay();
 }

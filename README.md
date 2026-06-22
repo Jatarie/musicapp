@@ -35,6 +35,7 @@ Timing starts with the first played note and ends when the final target in the p
 ## Features
 
 - MusicXML score library and local MusicXML import
+- One-click practice in a random transposed key
 - Four systems of two measures per page
 - Automatic page progression
 - Meter, key, voices, chords, rests, triplets, cross-staff beams, ties, and slurs from MusicXML
