@@ -14,7 +14,7 @@ Then open `http://localhost:5173` in Chrome or Edge.
 
 ## Styling
 
-Styles are authored as Tailwind utility classes in `index.html` and `app.js`. The minimal `tailwind.css` entry point is compiled to the checked-in `styles.css`:
+Styles are authored as Tailwind utility classes in `index.html` and `index.js`. The minimal `tailwind.css` entry point is compiled to the checked-in `styles.css`:
 
 ```powershell
 tailwind -i tailwind.css -o styles.css --minify
@@ -24,7 +24,7 @@ Use `--watch` while changing styles. Run the build once before committing so the
 
 ## Score library
 
-Repository MusicXML files are listed in `MUSIC_XML_LIBRARY` near the top of `app.js`. Static web apps cannot enumerate files in their deployed directory, so add one manifest entry when adding a new `.xml` or `.musicxml` score.
+Repository MusicXML files are listed in `MUSIC_XML_LIBRARY` near the top of `index.js`. Static web apps cannot enumerate files in their deployed directory, so add one manifest entry when adding a new `.xml` or `.musicxml` score.
 
 Users can also load a local score with **Import MusicXML**.
 
