@@ -1366,8 +1366,7 @@ function updateNextSystemPreview() {
     existingPreview?.remove();
     return;
   }
-  const finalSystemStart = (SYSTEMS_PER_PAGE - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
-  const previewData = state.current >= finalSystemStart ? nextSystemPreviewData() : null;
+  const previewData = nextSystemPreviewData();
 
   if (!previewData) {
     existingPreview?.remove();
@@ -1376,7 +1375,7 @@ function updateNextSystemPreview() {
   if (existingPreview) return;
 
   const preview = document.createElement("div");
-  preview.className = "next-system-preview pointer-events-none absolute inset-x-0 top-0 z-2 h-[290px] min-w-3xl overflow-hidden border-b-2 border-teal-700 bg-white after:absolute after:top-2 after:right-2 after:bg-teal-700 after:px-2 after:py-1 after:text-xs after:text-white after:content-['Next_page']";
+  preview.className = "next-system-preview pointer-events-none absolute inset-x-0 top-0 z-2 h-[340px] min-w-3xl overflow-hidden shadow-xl border-b-2 border-slate-300 bg-white";
   preview.setAttribute("aria-label", "First system of the next page");
   els.score.append(preview);
 
