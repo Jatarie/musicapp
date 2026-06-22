@@ -125,9 +125,39 @@ function formatTempo(tempo) {
   return Number.isFinite(tempo) ? `${Math.round(tempo)} BPM` : "—";
 }
 
+function currentMeasureResults() {
+  const total = state.importedMeasureCount;
+  if (!total || !state.importedPages || state.importedPageIndex < 0) {
+    return { correct: 0, completed: 0, total };
+  }
+
+  const measuresPerPage = SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM;
+  const completed = state.performanceComplete
+    ? total
+    : Math.min(
+      total,
+      (state.importedPageIndex * measuresPerPage)
+        + Math.max(0, Math.floor(state.current / state.beatsPerMeasure))
+    );
+  let correct = 0;
+
+  for (let measureIndex = 0; measureIndex < completed; measureIndex += 1) {
+    const pageIndex = Math.floor(measureIndex / measuresPerPage);
+    const measureIndexOnPage = measureIndex % measuresPerPage;
+    const measureStart = measureIndexOnPage * state.beatsPerMeasure;
+    const measureTargets = state.importedPages[pageIndex]?.slice(
+      measureStart,
+      measureStart + state.beatsPerMeasure
+    ) || [];
+    if (!measureTargets.some((target) => target.missed)) correct += 1;
+  }
+
+  return { correct, completed, total };
+}
+
 function currentAccuracy() {
-  const attempts = state.correct + state.missed;
-  return attempts ? (state.correct / attempts) * 100 : null;
+  const { correct, completed, total } = currentMeasureResults();
+  return completed && total ? (correct / total) * 100 : null;
 }
 
 function tempoForDuration(durationMs) {
@@ -178,6 +208,7 @@ function recordCompletedPerformance() {
   stopPerformanceTimer();
 
   const accuracy = currentAccuracy() || 0;
+  const measureResults = currentMeasureResults();
   const tempo = tempoForDuration(state.performanceElapsedMs) || 0;
   const stats = readPerformanceStats();
   const previous = stats[state.activeScore.id] || { attempts: 0 };
@@ -189,8 +220,8 @@ function recordCompletedPerformance() {
     bestAccuracy: Math.max(previous.bestAccuracy ?? 0, accuracy),
     lastTempo: tempo,
     bestTempo: Math.max(previous.bestTempo ?? 0, tempo),
-    lastCorrect: state.correct,
-    lastMissed: state.missed,
+    lastCorrectMeasures: measureResults.correct,
+    lastMissedMeasures: measureResults.total - measureResults.correct,
     completedAt: new Date().toISOString()
   };
   writePerformanceStats(stats);
@@ -1221,6 +1252,7 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
   renderedTargetNotes = new Map();
   const systemCount = options.systemCount || SYSTEMS_PER_PAGE;
   const measureCount = options.measureCount || systemCount * MEASURES_PER_SYSTEM;
+  const measureNumberOffset = options.measureNumberOffset || 0;
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
@@ -1279,6 +1311,19 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
         "bass", measureX, bassY, measureWidth, isSystemStart, isScoreStart
       );
       addStaveConnectors(context, trebleStave, bassStave, isSystemStart);
+
+      const displayMeasureNumber = measureNumberOffset + measureNumber + 1;
+      if (
+        isSystemStart
+        && displayMeasureNumber > 1
+        && displayMeasureNumber <= state.importedMeasureCount
+      ) {
+        context.save();
+        context.setFont("Arial", 11, "normal");
+        context.setFillStyle("#475569");
+        context.fillText(String(displayMeasureNumber), measureX + 0, trebleY + 20);
+        context.restore();
+      }
 
       const targetOffset = measureNumber * state.beatsPerMeasure;
       const measureTargets = notes.slice(targetOffset, targetOffset + state.beatsPerMeasure);
@@ -1347,7 +1392,9 @@ function drawScore() {
       measureCount: state.importedMeasureCount
     });
   } else {
-    drawVexScore(els.score, state.notes, state.current, state.keyValue);
+    drawVexScore(els.score, state.notes, state.current, state.keyValue, {
+      measureNumberOffset: state.importedPageIndex * SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM
+    });
   }
   updateNextSystemPreview();
 }
@@ -1366,7 +1413,8 @@ function updateNextSystemPreview() {
     existingPreview?.remove();
     return;
   }
-  const previewData = nextSystemPreviewData();
+  const finalSystemStart = (SYSTEMS_PER_PAGE - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  const previewData = state.current >= finalSystemStart ? nextSystemPreviewData() : null;
 
   if (!previewData) {
     existingPreview?.remove();
@@ -1381,7 +1429,10 @@ function updateNextSystemPreview() {
 
   const currentRenderedTargets = renderedTargetNotes;
   try {
-    drawVexScore(preview, previewData.notes, -1, previewData.keyValue, { systemCount: 1 });
+    drawVexScore(preview, previewData.notes, -1, previewData.keyValue, {
+      systemCount: 1,
+      measureNumberOffset: (state.importedPageIndex + 1) * SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM
+    });
   } finally {
     renderedTargetNotes = currentRenderedTargets;
   }

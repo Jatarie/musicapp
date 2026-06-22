@@ -1,6 +1,6 @@
 # Sightline Music Reader
 
-A browser-based MusicXML practice app. It loads scores from a library, follows MIDI input through each page, and records completion time and note accuracy.
+A browser-based MusicXML practice app. It loads scores from a library, follows MIDI input through each page, and records completion time and measure accuracy.
 
 ## Run
 
@@ -30,7 +30,7 @@ Users can also load a local score with **Import MusicXML**.
 
 ## Performance statistics
 
-Timing starts with the first played note and ends when the final target in the piece is completed. Accuracy is calculated as completed note/chord targets divided by completed targets plus incorrect note presses. Tempo is calculated in quarter-note BPM from the measure count, time signature, and completion time. Completed results are stored in browser `localStorage` and shown in the score library.
+Timing starts with the first played note and ends when the final target in the piece is completed. Accuracy is calculated as measures completed without a wrong note press divided by the total measures in the piece. Tempo is calculated in quarter-note BPM from the measure count, time signature, and completion time. Completed results are stored in browser `localStorage` and shown in the score library.
 
 ## Features
 
