@@ -6,18 +6,21 @@ const RENDER_SLURS = false;
 const RENDER_TIES = true;
 // Keep ledger lines inside the notehead bounds so adjacent notes retain a visible gap.
 const LEDGER_LINE_OVERHANG = 0.00;
+// A sixteenth rest spans several staff positions. Keep its anchor at least an
+// octave from a simultaneous notehead in another voice.
+const REST_NOTE_CLEARANCE_STEPS = 7;
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
   {
     id: "prelude-in-c-major",
-    file: "prelude-in-c-major.xml",
+    file: "https://jatarie.github.io/musicapp/prelude-in-c-major.xml",
     title: "Prelude in C Major",
     composer: "J. S. Bach"
   },
   {
     id: "moonlight",
-    file: "moonlight.xml",
+    file: "https://jatarie.github.io/musicapp/moonlight.xml",
     title: "Moonlight Sonata mv. 1",
     composer: "Beethoven"
   }
@@ -710,6 +713,78 @@ function vexKey(note) {
   return `${note.step.toLowerCase()}${accidental}/${note.octave}`;
 }
 
+const DIATONIC_STEPS = ["C", "D", "E", "F", "G", "A", "B"];
+
+function diatonicPosition(step, octave) {
+  const stepIndex = DIATONIC_STEPS.indexOf(String(step).toUpperCase());
+  return stepIndex < 0 || !Number.isFinite(octave) ? null : (octave * 7) + stepIndex;
+}
+
+function diatonicPositionForVexKey(key) {
+  const match = /^([a-g])(?:bb|##|b|#|n)?\/(-?\d+)$/i.exec(key || "");
+  return match ? diatonicPosition(match[1], Number(match[2])) : null;
+}
+
+function vexKeyForDiatonicPosition(position) {
+  const stepIndex = ((position % 7) + 7) % 7;
+  return `${DIATONIC_STEPS[stepIndex].toLowerCase()}/${Math.floor(position / 7)}`;
+}
+
+function nearestVoicePosition(measureTargets, slot, staff, voiceId) {
+  let nearestDistance = Infinity;
+  let nearestPositions = [];
+
+  measureTargets.forEach((target, targetSlot) => {
+    const positions = targetNotes(target)
+      .filter((note) => note.staff === staff && note.voice === voiceId)
+      .map((note) => diatonicPosition(note.step, note.octave))
+      .filter(Number.isFinite);
+    if (!positions.length) return;
+
+    const distance = Math.abs(targetSlot - slot);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestPositions = positions;
+    }
+  });
+
+  if (!nearestPositions.length) return null;
+  return Math.round(nearestPositions.reduce((sum, position) => sum + position, 0) / nearestPositions.length);
+}
+
+function collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest) {
+  const staffDefaultKey = staff === "bass" ? "d/3" : "b/4";
+  const sourcePosition = diatonicPositionForVexKey(rest.displayKey);
+  const voicePosition = nearestVoicePosition(measureTargets, slot, staff, voiceId);
+  const basePosition = voicePosition ?? sourcePosition
+    ?? diatonicPositionForVexKey(staffDefaultKey);
+  const otherVoicePositions = targetNotes(measureTargets[slot])
+    .filter((note) => note.staff === staff && note.voice !== voiceId)
+    .map((note) => diatonicPosition(note.step, note.octave))
+    .filter(Number.isFinite);
+
+  if (!otherVoicePositions.some(
+    (position) => Math.abs(basePosition - position) < REST_NOTE_CLEARANCE_STEPS
+  )) {
+    return vexKeyForDiatonicPosition(basePosition);
+  }
+
+  const upperPosition = Math.max(...otherVoicePositions) + REST_NOTE_CLEARANCE_STEPS;
+  const lowerPosition = Math.min(...otherVoicePositions) - REST_NOTE_CLEARANCE_STEPS;
+  const otherVoiceCenter = otherVoicePositions.reduce((sum, position) => sum + position, 0)
+    / otherVoicePositions.length;
+
+  // Follow the melodic side occupied by this voice. If both voices are on the
+  // same line, retain the source rest's side; otherwise take the shorter move.
+  if (basePosition > otherVoiceCenter) return vexKeyForDiatonicPosition(upperPosition);
+  if (basePosition < otherVoiceCenter) return vexKeyForDiatonicPosition(lowerPosition);
+  if (sourcePosition > otherVoiceCenter) return vexKeyForDiatonicPosition(upperPosition);
+  if (sourcePosition < otherVoiceCenter) return vexKeyForDiatonicPosition(lowerPosition);
+  return vexKeyForDiatonicPosition(
+    upperPosition - basePosition <= basePosition - lowerPosition ? upperPosition : lowerPosition
+  );
+}
+
 function vexDurationForBeatValue(beatValue) {
   return ({ 1: "w", 2: "h", 4: "q", 8: "8", 16: "16" })[beatValue] || "q";
 }
@@ -950,7 +1025,7 @@ function makeImportedStaffVoices(
       const staveNote = makeStaveNote({
         clef: staff,
         keys: rest
-          ? [rest.displayKey || (staff === "bass" ? "d/3" : "b/4")]
+          ? [collisionAwareRestKey(measureTargets, slot, staff, voiceId, rest)]
           : notes.map(vexKey),
         duration,
         autoStem: stemDirection === null,
