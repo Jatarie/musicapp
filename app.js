@@ -1256,7 +1256,7 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
 
   const width = Math.max(container.clientWidth || 960, 960);
   const systemSpacing = 300;
-  const height = systemCount === 1 ? 290 : (systemCount * systemSpacing) + 80;
+  const height = options.height || (systemCount === 1 ? 290 : (systemCount * systemSpacing) + 80);
   const pageMargin = 18;
   const systemWidth = width - (pageMargin * 2);
 
@@ -1431,6 +1431,7 @@ function updateNextSystemPreview() {
   try {
     drawVexScore(preview, previewData.notes, -1, previewData.keyValue, {
       systemCount: 1,
+      height: 340,
       measureNumberOffset: (state.importedPageIndex + 1) * SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM
     });
   } finally {
