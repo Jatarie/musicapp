@@ -20,8 +20,8 @@ const MULTI_VOICE_REST_FLOOR_KEYS = {
 };
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 const LEARN_STORAGE_KEY = "sightline-learn-v1";
-const LEARN_STREAK_GOAL = 10;
-const LEARN_HIDE_AFTER_STREAK = 5;
+const LEARN_STREAK_GOAL = 4;
+const LEARN_HIDE_AFTER_STREAK = 2;
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
   {
@@ -867,7 +867,7 @@ function renderHiddenLearnMusic(step = currentLearnStep()) {
       <p class="text-sm font-bold text-slate-500 uppercase">Music hidden</p>
       <h3 class="text-2xl">${step?.label || "Learning step"}</h3>
       <p class="mt-3 text-xl">${step?.phaseLabel || "Play from memory"}</p>
-      <p class="mt-3 text-sm text-slate-500">Repetitions 6-10 are from memory.</p>
+      <p class="mt-3 text-sm text-slate-500">Repetitions 3-4 are from memory.</p>
     </div>
   `;
   els.score.append(panel);
