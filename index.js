@@ -736,13 +736,6 @@ function firstPlayableTargetIndex(targets, startIndex = 0) {
   return index;
 }
 
-function lastPlayableTargetIndex(targets, startIndex, endIndex) {
-  for (let index = endIndex - 1; index >= startIndex; index -= 1) {
-    if (requiredTargetNotes(targets[index]).length) return index;
-  }
-  return -1;
-}
-
 function clearTargetRunState(targets) {
   targets.forEach((target) => {
     delete target.missed;
@@ -783,45 +776,42 @@ function makeLearnPhases(stepBase, startIndex, endIndex) {
 function buildLearnSteps() {
   const targetsPerMeasure = state.beatsPerMeasure;
   const steps = [];
+  const totalMeasures = state.importedMeasureCount;
 
-  for (let measureIndex = 0; measureIndex < state.importedMeasureCount; measureIndex += 1) {
-    const measureStart = measureIndex * targetsPerMeasure;
-    const measureEnd = measureStart + targetsPerMeasure;
+  const addMeasureRange = (startMeasure, endMeasure, idPrefix = "measures") => {
+    if (startMeasure < 0 || endMeasure >= totalMeasures || startMeasure > endMeasure) return;
+    const measureCount = endMeasure - startMeasure + 1;
+    const targetStart = startMeasure * targetsPerMeasure;
+    const targetEnd = (endMeasure + 1) * targetsPerMeasure;
+    const label = measureCount === 1
+      ? `Measure ${startMeasure + 1}`
+      : `Measures ${startMeasure + 1}-${endMeasure + 1}`;
+    steps.push(...makeLearnPhases({
+      id: `${idPrefix}-${startMeasure + 1}-${endMeasure + 1}`,
+      label,
+      renderStartMeasure: startMeasure,
+      renderMeasureCount: measureCount,
+      practiceStartOffset: 0,
+      practiceEndOffset: measureCount * targetsPerMeasure
+    }, targetStart, targetEnd));
+  };
 
-    if (measureIndex === 0) {
-      steps.push(...makeLearnPhases({
-        id: "measure-1",
-        label: "Measure 1",
-        renderStartMeasure: 0,
-        renderMeasureCount: 1,
-        practiceStartOffset: 0,
-        practiceEndOffset: targetsPerMeasure
-      }, measureStart, measureEnd));
-      continue;
+  if (totalMeasures) addMeasureRange(0, 0, "single");
+
+  for (let endMeasure = 1; endMeasure < totalMeasures; endMeasure += 1) {
+    addMeasureRange(endMeasure - 1, endMeasure, "pair");
+
+    if ((endMeasure + 1) % 4 === 0) {
+      addMeasureRange(endMeasure - 3, endMeasure, "block");
     }
 
-    const previousStart = (measureIndex - 1) * targetsPerMeasure;
-    const previousEnd = previousStart + targetsPerMeasure;
-    const leadInIndex = lastPlayableTargetIndex(state.importedSourceTargets, previousStart, previousEnd);
-    const transitionStart = leadInIndex >= 0 ? leadInIndex : measureStart;
+    if ((endMeasure + 1) % 16 === 0) {
+      addMeasureRange(0, endMeasure, "from-start");
+    }
+  }
 
-    steps.push(...makeLearnPhases({
-      id: `measure-${measureIndex + 1}-lead-in`,
-      label: `Measure ${measureIndex + 1} with previous final note`,
-      renderStartMeasure: measureIndex - 1,
-      renderMeasureCount: 2,
-      practiceStartOffset: transitionStart - previousStart,
-      practiceEndOffset: targetsPerMeasure * 2
-    }, transitionStart, measureEnd));
-
-    steps.push(...makeLearnPhases({
-      id: `measures-1-${measureIndex + 1}`,
-      label: `Measures 1-${measureIndex + 1}`,
-      renderStartMeasure: 0,
-      renderMeasureCount: measureIndex + 1,
-      practiceStartOffset: 0,
-      practiceEndOffset: measureEnd
-    }, 0, measureEnd));
+  if (totalMeasures > 1 && totalMeasures % 16 !== 0) {
+    addMeasureRange(0, totalMeasures - 1, "from-start");
   }
 
   return steps;
