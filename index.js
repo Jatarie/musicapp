@@ -489,9 +489,13 @@ function readMusicXml(xmlText) {
           const semitones = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
           if (!(step in semitones)) throw new Error("A MusicXML pitch has no valid step");
           const midi = ((octave + 1) * 12) + semitones[step] + alter;
-          const ties = [...new Set(Array.from(element.children)
-            .filter((child) => child.localName === "tie")
-            .map((tie) => tie.getAttribute("type") || "start"))]
+          const tieTypes = [
+            ...Array.from(element.children)
+              .filter((child) => child.localName === "tie"),
+            ...Array.from(notations?.children || [])
+              .filter((child) => child.localName === "tied")
+          ].map((tie) => tie.getAttribute("type") || "start");
+          const ties = [...new Set(tieTypes)]
             .map((tieType) => ({
               id: `${partIndex}:${staff}:${voice}:${midi}`,
               type: tieType
