@@ -2014,7 +2014,8 @@ function handleComputerKey(event) {
     if (!target) return;
 
     event.preventDefault();
-    const notes = targetNotes(target);
+    const notes = state.learn.active ? learnTargetNotes(target) : targetNotes(target);
+    if (!notes.length) return;
     notes.forEach((note) => state.heldMidi.add(note.midi));
     handlePlayedNote(notes[notes.length - 1].midi);
     notes.forEach((note) => state.heldMidi.delete(note.midi));
