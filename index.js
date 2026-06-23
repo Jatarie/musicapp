@@ -350,6 +350,14 @@ function targetNotes(target) {
   return target && Array.isArray(target.notes) ? target.notes : target ? [target] : [];
 }
 
+function isTieContinuation(note) {
+  return Boolean(note?.ties?.some((tie) => tie.type === "stop" || tie.type === "continue"));
+}
+
+function requiredTargetNotes(target) {
+  return targetNotes(target).filter((note) => !isTieContinuation(note));
+}
+
 function directChild(element, name) {
   return Array.from(element.children).find((child) => child.localName === name) || null;
 }
@@ -720,13 +728,13 @@ function convertMusicXmlToTargets(score) {
 
 function firstPlayableTargetIndex(targets, startIndex = 0) {
   let index = startIndex;
-  while (index < targets.length && targets[index].rest) index += 1;
+  while (index < targets.length && !requiredTargetNotes(targets[index]).length) index += 1;
   return index;
 }
 
 function lastPlayableTargetIndex(targets, startIndex, endIndex) {
   for (let index = endIndex - 1; index >= startIndex; index -= 1) {
-    if (targetNotes(targets[index]).length) return index;
+    if (requiredTargetNotes(targets[index]).length) return index;
   }
   return -1;
 }
@@ -828,6 +836,10 @@ function learnStepTargets(step) {
 function learnTargetNotes(target, step = currentLearnStep()) {
   const notes = targetNotes(target);
   return step?.handStaff ? notes.filter((note) => note.staff === step.handStaff) : notes;
+}
+
+function requiredLearnTargetNotes(target, step = currentLearnStep()) {
+  return learnTargetNotes(target, step).filter((note) => !isTieContinuation(note));
 }
 
 function learnStatusText(step = currentLearnStep()) {
@@ -1772,7 +1784,7 @@ function nextLearnPlayableIndex(startIndex) {
   const endIndex = learnPracticeEnd();
   const step = currentLearnStep();
   let index = Math.max(startIndex, step?.practiceStartOffset || 0);
-  while (index < endIndex && !learnTargetNotes(state.notes[index], step).length) index += 1;
+  while (index < endIndex && !requiredLearnTargetNotes(state.notes[index], step).length) index += 1;
   return index;
 }
 
@@ -1834,7 +1846,7 @@ function handleLearnPlayedNote(midi) {
 
   const targetIndex = state.current;
   const target = state.notes[targetIndex];
-  const expectedMidi = learnTargetNotes(target, step).map((note) => note.midi);
+  const expectedMidi = requiredLearnTargetNotes(target, step).map((note) => note.midi);
   if (!expectedMidi.includes(midi)) {
     resetCurrentLearnAttempt(`Heard ${midiToName(midi)}`);
     return;
@@ -1863,7 +1875,7 @@ function handlePlayedNote(midi) {
   if (!target) return;
   startPerformanceTimer();
 
-  const expectedNotes = targetNotes(target);
+  const expectedNotes = requiredTargetNotes(target);
   const expectedMidi = expectedNotes.map((note) => note.midi);
   const isExpected = expectedMidi.includes(midi);
 
@@ -2014,7 +2026,7 @@ function handleComputerKey(event) {
     if (!target) return;
 
     event.preventDefault();
-    const notes = state.learn.active ? learnTargetNotes(target) : targetNotes(target);
+    const notes = state.learn.active ? requiredLearnTargetNotes(target) : requiredTargetNotes(target);
     if (!notes.length) return;
     notes.forEach((note) => state.heldMidi.add(note.midi));
     handlePlayedNote(notes[notes.length - 1].midi);
