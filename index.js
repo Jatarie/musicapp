@@ -19,6 +19,8 @@ const MULTI_VOICE_REST_FLOOR_KEYS = {
   bass: "c/3"
 };
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
+const LEARN_STORAGE_KEY = "sightline-learn-v1";
+const LEARN_STREAK_GOAL = 10;
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
   {
@@ -76,7 +78,14 @@ const state = {
   performanceStartedAt: null,
   performanceElapsedMs: 0,
   performanceComplete: false,
-  timerId: null
+  timerId: null,
+  learn: {
+    active: false,
+    steps: [],
+    stepIndex: 0,
+    streak: 0,
+    completed: false
+  }
 };
 let renderedTargetNotes = new Map();
 
@@ -116,6 +125,48 @@ function writePerformanceStats(stats) {
   } catch {
     // Practice still works when browser storage is unavailable.
   }
+}
+
+function readLearnProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(LEARN_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLearnProgress(progress) {
+  try {
+    localStorage.setItem(LEARN_STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    // Learning can continue for the session even when persistence is blocked.
+  }
+}
+
+function learnProgressForScore(scoreId) {
+  return readLearnProgress()[scoreId] || null;
+}
+
+function formatLearnProgress(progress) {
+  if (!progress) return "Not started";
+  if (progress.completed) return "Complete";
+  if (!progress.totalSteps) return "In progress";
+  return `Step ${Math.min(progress.stepIndex + 1, progress.totalSteps)} of ${progress.totalSteps}`;
+}
+
+function saveCurrentLearnProgress() {
+  if (!state.learn.active || !state.activeScore) return;
+
+  const progress = readLearnProgress();
+  progress[state.activeScore.id] = {
+    stepIndex: state.learn.stepIndex,
+    streak: state.learn.streak,
+    totalSteps: state.learn.steps.length,
+    measureCount: state.importedMeasureCount,
+    completed: state.learn.completed,
+    updatedAt: new Date().toISOString()
+  };
+  writeLearnProgress(progress);
 }
 
 function formatDuration(durationMs) {
@@ -235,10 +286,12 @@ function recordCompletedPerformance() {
 
 function renderScoreLibrary() {
   const stats = readPerformanceStats();
+  const learnProgress = readLearnProgress();
   els.scoreLibrary.innerHTML = "";
 
   MUSIC_XML_LIBRARY.forEach((score) => {
     const result = stats[score.id];
+    const learning = learnProgress[score.id];
     const card = document.createElement("article");
     card.className = "score-card grid gap-4 border border-slate-200 p-4 lg:grid-cols-[1fr_2fr_auto] lg:items-center";
     card.innerHTML = `
@@ -255,14 +308,17 @@ function renderScoreLibrary() {
         <div><dt>Last accuracy</dt><dd>${result ? `${Math.round(result.lastAccuracy)}%` : "—"}</dd></div>
         <div><dt>Best tempo</dt><dd>${formatTempo(result?.bestTempo)}</dd></div>
         <div><dt>Last tempo</dt><dd>${formatTempo(result?.lastTempo)}</dd></div>
+        <div><dt>Learn</dt><dd>${formatLearnProgress(learning)}</dd></div>
       </dl>
       <div class="score-actions flex flex-wrap gap-2 justify-self-start">
         <button class="bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button" data-action="play">Play score</button>
+        <button class="bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button" data-action="learn">${learning && !learning.completed ? "Resume learning" : "Learn score"}</button>
         <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" type="button" data-action="view">View score</button>
         <button class="secondary bg-slate-200 px-4 py-2 font-semibold hover:bg-slate-300" type="button" data-action="random-key">Play score in random key</button>
       </div>
     `;
     card.querySelector('[data-action="play"]').addEventListener("click", () => loadLibraryScore(score));
+    card.querySelector('[data-action="learn"]').addEventListener("click", () => loadLibraryScore(score, false, false, true));
     card.querySelector('[data-action="view"]').addEventListener("click", () => loadLibraryScore(score, false, true));
     card.querySelector('[data-action="random-key"]').addEventListener("click", () => loadLibraryScore(score, true));
     els.scoreLibrary.append(card);
@@ -271,7 +327,11 @@ function renderScoreLibrary() {
 
 function showLibrary() {
   stopPerformanceTimer();
+  if (state.learn.active) saveCurrentLearnProgress();
+  state.learn.active = false;
   state.fullScoreView = false;
+  els.score.style.maxHeight = "";
+  els.score.style.overflowY = "";
   document.body.classList.remove("player-active");
   els.playerView.hidden = true;
   els.libraryView.hidden = false;
@@ -663,6 +723,183 @@ function firstPlayableTargetIndex(targets, startIndex = 0) {
   return index;
 }
 
+function lastPlayableTargetIndex(targets, startIndex, endIndex) {
+  for (let index = endIndex - 1; index >= startIndex; index -= 1) {
+    if (targetNotes(targets[index]).length) return index;
+  }
+  return -1;
+}
+
+function clearTargetRunState(targets) {
+  targets.forEach((target) => {
+    delete target.missed;
+    delete target.corrected;
+    if (Array.isArray(target.playedMidi)) target.playedMidi.length = 0;
+  });
+}
+
+function rangeHasMultipleVoices(startIndex, endIndex) {
+  const voices = new Set();
+  for (let index = startIndex; index < endIndex; index += 1) {
+    targetNotes(state.importedSourceTargets[index]).forEach((note) => {
+      if (note.voice) voices.add(note.voice);
+    });
+    if (voices.size > 1) return true;
+  }
+  return false;
+}
+
+function makeLearnPhases(stepBase, startIndex, endIndex) {
+  const phases = rangeHasMultipleVoices(startIndex, endIndex)
+    ? [
+      { id: "left", label: "Left hand only", loose: true },
+      { id: "right", label: "Right hand only", loose: true },
+      { id: "both", label: "Both hands", loose: false }
+    ]
+    : [{ id: "both", label: "Both hands", loose: false }];
+
+  return phases.map((phase) => ({
+    ...stepBase,
+    id: `${stepBase.id}:${phase.id}`,
+    phase: phase.id,
+    phaseLabel: phase.label,
+    loose: phase.loose
+  }));
+}
+
+function buildLearnSteps() {
+  const targetsPerMeasure = state.beatsPerMeasure;
+  const steps = [];
+
+  for (let measureIndex = 0; measureIndex < state.importedMeasureCount; measureIndex += 1) {
+    const measureStart = measureIndex * targetsPerMeasure;
+    const measureEnd = measureStart + targetsPerMeasure;
+
+    if (measureIndex === 0) {
+      steps.push(...makeLearnPhases({
+        id: "measure-1",
+        label: "Measure 1",
+        renderStartMeasure: 0,
+        renderMeasureCount: 1,
+        practiceStartOffset: 0,
+        practiceEndOffset: targetsPerMeasure
+      }, measureStart, measureEnd));
+      continue;
+    }
+
+    const previousStart = (measureIndex - 1) * targetsPerMeasure;
+    const previousEnd = previousStart + targetsPerMeasure;
+    const leadInIndex = lastPlayableTargetIndex(state.importedSourceTargets, previousStart, previousEnd);
+    const transitionStart = leadInIndex >= 0 ? leadInIndex : measureStart;
+
+    steps.push(...makeLearnPhases({
+      id: `measure-${measureIndex + 1}-lead-in`,
+      label: `Measure ${measureIndex + 1} with previous final note`,
+      renderStartMeasure: measureIndex - 1,
+      renderMeasureCount: 2,
+      practiceStartOffset: transitionStart - previousStart,
+      practiceEndOffset: targetsPerMeasure * 2
+    }, transitionStart, measureEnd));
+
+    steps.push(...makeLearnPhases({
+      id: `measures-1-${measureIndex + 1}`,
+      label: `Measures 1-${measureIndex + 1}`,
+      renderStartMeasure: 0,
+      renderMeasureCount: measureIndex + 1,
+      practiceStartOffset: 0,
+      practiceEndOffset: measureEnd
+    }, 0, measureEnd));
+  }
+
+  return steps;
+}
+
+function currentLearnStep() {
+  return state.learn.steps[state.learn.stepIndex] || null;
+}
+
+function learnStepTargets(step) {
+  const start = step.renderStartMeasure * state.beatsPerMeasure;
+  const end = start + (step.renderMeasureCount * state.beatsPerMeasure);
+  return state.importedSourceTargets.slice(start, end);
+}
+
+function learnStatusText(step = currentLearnStep()) {
+  if (!step) return "Learning complete";
+  return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL}`;
+}
+
+function renderLearnOverlay() {
+  if (!state.learn.active) return;
+
+  let overlay = els.score.querySelector(".learn-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "learn-overlay absolute top-0 z-2 border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600";
+    overlay.style.left = "0";
+    overlay.style.maxWidth = "calc(100% - 1rem)";
+    overlay.style.boxShadow = "0 8px 20px rgba(15, 23, 42, 0.12)";
+    els.score.append(overlay);
+  }
+  overlay.textContent = learnStatusText();
+}
+
+function startCurrentLearnStep(feedbackMessage = "") {
+  const step = currentLearnStep();
+  if (!step) {
+    state.learn.completed = true;
+    state.learn.streak = LEARN_STREAK_GOAL;
+    saveCurrentLearnProgress();
+    setFeedback("Learning complete", "good");
+    showLibrary();
+    return;
+  }
+
+  state.notes = learnStepTargets(step);
+  clearTargetRunState(state.notes);
+  state.current = firstPlayableTargetIndex(state.notes, step.practiceStartOffset);
+  if (state.current >= step.practiceEndOffset) {
+    state.learn.stepIndex += 1;
+    state.learn.streak = 0;
+    saveCurrentLearnProgress();
+    startCurrentLearnStep("Skipped empty step");
+    return;
+  }
+
+  state.importedPageIndex = Math.floor(step.renderStartMeasure / (SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM));
+  els.score.style.maxHeight = "100vh";
+  els.score.style.overflowY = "auto";
+  setFeedback(feedbackMessage || learnStatusText(step), "good");
+  updateLabels();
+  drawScore();
+  renderLearnOverlay();
+}
+
+function startLearnMode() {
+  const steps = buildLearnSteps();
+  const progress = learnProgressForScore(state.activeScore.id);
+  const canResume = progress
+    && !progress.completed
+    && progress.measureCount === state.importedMeasureCount
+    && progress.totalSteps === steps.length;
+
+  state.learn = {
+    active: true,
+    steps,
+    stepIndex: canResume ? Math.min(progress.stepIndex || 0, Math.max(steps.length - 1, 0)) : 0,
+    streak: canResume ? Math.min(progress.streak || 0, LEARN_STREAK_GOAL - 1) : 0,
+    completed: false
+  };
+  state.fullScoreView = false;
+  state.importedPages = null;
+  state.importedPageIndex = -1;
+  els.playerFooter.hidden = false;
+  resetPerformance();
+  showPlayer();
+  saveCurrentLearnProgress();
+  startCurrentLearnStep(canResume ? "Resuming learning" : "Ready to learn");
+}
+
 function startImportedPage(pageIndex) {
   const page = state.importedPages && state.importedPages[pageIndex];
   if (!page) {
@@ -684,6 +921,8 @@ function startFullScoreView() {
   state.notes = state.importedSourceTargets || [];
   state.current = -1;
   state.fullScoreView = true;
+  els.score.style.maxHeight = "";
+  els.score.style.overflowY = "";
   els.playerFooter.hidden = true;
   showPlayer(false);
   updateLabels();
@@ -719,6 +958,7 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null, options = 
     ? scoreMeta.title
     : `${scoreMeta.title} — ${converted.keyValue}`;
   state.activeScore = { ...scoreMeta, displayTitle };
+  if (!options.learn) state.learn.active = false;
   state.importedSourceTargets = converted.targets;
   state.importedMeasureCount = converted.measureCount;
   state.keyValue = converted.keyValue;
@@ -730,11 +970,15 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null, options = 
   state.slotsPerQuarter = converted.slotsPerQuarter;
   state.timeSignature = converted.timeSignature;
   els.pieceTitle.textContent = displayTitle;
-  if (options.fullScore) {
+  if (options.learn) {
+    startLearnMode();
+  } else if (options.fullScore) {
     resetPerformance();
     setFeedback("Full score");
     startFullScoreView();
   } else {
+    els.score.style.maxHeight = "";
+    els.score.style.overflowY = "";
     showPlayer();
     rebuildImportedPages("Ready to play");
   }
@@ -757,7 +1001,7 @@ async function loadMusicXmlFile(file) {
   }
 }
 
-async function loadLibraryScore(scoreMeta, useRandomKey = false, fullScore = false) {
+async function loadLibraryScore(scoreMeta, useRandomKey = false, fullScore = false, learn = false) {
   showPlayer(!fullScore);
   els.pieceTitle.textContent = scoreMeta.title;
   setFeedback("Loading score");
@@ -769,7 +1013,7 @@ async function loadLibraryScore(scoreMeta, useRandomKey = false, fullScore = fal
     const targetSharpsFlats = useRandomKey
       ? randomKeySignatureExcluding(originalScore.sharpsFlats)
       : null;
-    importMusicXml(xmlText, scoreMeta, targetSharpsFlats, { fullScore });
+    importMusicXml(xmlText, scoreMeta, targetSharpsFlats, { fullScore, learn });
   } catch (error) {
     setFeedback(error.message || "Could not load MusicXML", "bad");
   }
@@ -1400,7 +1644,16 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
 }
 
 function drawScore() {
-  if (state.fullScoreView) {
+  if (state.learn.active) {
+    const step = currentLearnStep();
+    const measureCount = step?.renderMeasureCount || 1;
+    drawVexScore(els.score, state.notes, state.current, state.keyValue, {
+      systemCount: Math.ceil(measureCount / MEASURES_PER_SYSTEM),
+      measureCount,
+      measureNumberOffset: step?.renderStartMeasure || 0
+    });
+    renderLearnOverlay();
+  } else if (state.fullScoreView) {
     drawVexScore(els.score, state.notes, -1, state.keyValue, {
       systemCount: Math.ceil(state.importedMeasureCount / MEASURES_PER_SYSTEM),
       measureCount: state.importedMeasureCount
@@ -1423,7 +1676,7 @@ function nextSystemPreviewData() {
 
 function updateNextSystemPreview() {
   const existingPreview = els.score.querySelector(".next-system-preview");
-  if (state.fullScoreView) {
+  if (state.fullScoreView || state.learn.active) {
     existingPreview?.remove();
     return;
   }
@@ -1455,8 +1708,10 @@ function updateNextSystemPreview() {
 
 function updateLabels() {
   const target = state.notes[state.current];
-  els.pageLabel.textContent = state.fullScoreView
-    ? `Full score · ${state.importedMeasureCount} measures`
+  els.pageLabel.textContent = state.learn.active
+    ? `Learn score - Step ${Math.min(state.learn.stepIndex + 1, state.learn.steps.length)} of ${state.learn.steps.length}`
+    : state.fullScoreView
+    ? `Full score - ${state.importedMeasureCount} measures`
     : state.importedPages
     ? `Page ${state.importedPageIndex + 1} of ${state.importedPages.length}`
     : "Page 1";
@@ -1475,7 +1730,117 @@ function pitchClass(midi) {
   return ((midi % 12) + 12) % 12;
 }
 
+function learnPracticeEnd(step = currentLearnStep()) {
+  return Math.min(step?.practiceEndOffset || state.notes.length, state.notes.length);
+}
+
+function nextLearnPlayableIndex(startIndex) {
+  const endIndex = learnPracticeEnd();
+  let index = Math.max(startIndex, currentLearnStep()?.practiceStartOffset || 0);
+  while (index < endIndex && !targetNotes(state.notes[index]).length) index += 1;
+  return index;
+}
+
+function resetCurrentLearnAttempt(message, type = "bad") {
+  const step = currentLearnStep();
+  state.learn.streak = 0;
+  clearTargetRunState(state.notes);
+  state.current = nextLearnPlayableIndex(step?.practiceStartOffset || 0);
+  saveCurrentLearnProgress();
+  setFeedback(message, type);
+  drawScore();
+}
+
+function completeLearnAttempt() {
+  const step = currentLearnStep();
+  state.learn.streak += 1;
+
+  if (state.learn.streak >= LEARN_STREAK_GOAL) {
+    state.learn.stepIndex += 1;
+    state.learn.streak = 0;
+    saveCurrentLearnProgress();
+    startCurrentLearnStep(step ? `${step.label} complete` : "Step complete");
+    return;
+  }
+
+  saveCurrentLearnProgress();
+  clearTargetRunState(state.notes);
+  state.current = nextLearnPlayableIndex(step?.practiceStartOffset || 0);
+  setFeedback(learnStatusText(step), "good");
+  drawScore();
+}
+
+function finishLearnTarget(targetIndex) {
+  const previousIndex = state.current;
+  state.current = nextLearnPlayableIndex(targetIndex + 1);
+  setFeedback("Correct", "good");
+
+  if (state.current >= learnPracticeEnd()) {
+    completeLearnAttempt();
+    return;
+  }
+
+  updateLabels();
+  for (let index = previousIndex; index <= targetIndex; index += 1) {
+    refreshRenderedTargetStyle(index);
+  }
+  refreshRenderedTargetStyle(state.current);
+  renderLearnOverlay();
+}
+
+function findLooseLearnMatch(midi) {
+  const endIndex = learnPracticeEnd();
+  for (let index = state.current; index < endIndex; index += 1) {
+    if (targetNotes(state.notes[index]).some((note) => note.midi === midi)) return index;
+  }
+  return -1;
+}
+
+function handleLearnPlayedNote(midi) {
+  const step = currentLearnStep();
+  if (!step) return;
+
+  if (state.current >= learnPracticeEnd()) {
+    completeLearnAttempt();
+    return;
+  }
+
+  if (step.loose) {
+    const targetIndex = findLooseLearnMatch(midi);
+    if (targetIndex < 0) {
+      resetCurrentLearnAttempt(`Heard ${midiToName(midi)}`);
+      return;
+    }
+    finishLearnTarget(targetIndex);
+    return;
+  }
+
+  const targetIndex = state.current;
+  const target = state.notes[targetIndex];
+  const expectedMidi = targetNotes(target).map((note) => note.midi);
+  if (!expectedMidi.includes(midi)) {
+    resetCurrentLearnAttempt(`Heard ${midiToName(midi)}`);
+    return;
+  }
+
+  const isComplete = expectedMidi.every((noteMidi) => state.heldMidi.has(noteMidi));
+  if (!isComplete) {
+    const remaining = expectedMidi.filter((noteMidi) => !state.heldMidi.has(noteMidi)).length;
+    const label = remaining === 1 ? "note" : "notes";
+    setFeedback(`${remaining} ${label} left`, "good");
+    renderLearnOverlay();
+    return;
+  }
+
+  finishLearnTarget(targetIndex);
+}
+
 function handlePlayedNote(midi) {
+  if (state.learn.active) {
+    handleLearnPlayedNote(midi);
+    return;
+  }
+
   const targetIndex = state.current;
   const target = state.notes[targetIndex];
   if (!target) return;
@@ -1645,6 +2010,12 @@ els.musicXmlFile.addEventListener("change", () => loadMusicXmlFile(els.musicXmlF
 els.importScore.addEventListener("click", () => els.musicXmlFile.click());
 els.backToLibrary.addEventListener("click", showLibrary);
 els.restartPiece.addEventListener("click", () => {
+  if (state.learn.active) {
+    state.learn.streak = 0;
+    saveCurrentLearnProgress();
+    startCurrentLearnStep("Restarted learning step");
+    return;
+  }
   resetPerformance();
   startImportedPage(0);
   setFeedback("Ready to play");
