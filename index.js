@@ -22,6 +22,7 @@ const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 const LEARN_STORAGE_KEY = "sightline-learn-v1";
 const PRACTICE_STORAGE_KEY = "sightline-practice-v1";
 const PRACTICE_IDLE_LIMIT_MS = 60000;
+const LEARN_ESTIMATE_ROUND_MS = 5 * 60000;
 const LEARN_STREAK_GOAL = 4;
 const LEARN_HIDE_AFTER_STREAK = 2;
 // Static sites cannot enumerate their directory, so repository scores are declared here.
@@ -198,6 +199,11 @@ function formatEstimate(durationMs) {
   return durationMs === null ? "—" : formatDuration(durationMs);
 }
 
+function formatLearnEstimate(durationMs) {
+  if (durationMs === null) return "—";
+  return formatDuration(Math.round(durationMs / LEARN_ESTIMATE_ROUND_MS) * LEARN_ESTIMATE_ROUND_MS);
+}
+
 function currentLearnProgressSnapshot() {
   return {
     stepIndex: state.learn.stepIndex,
@@ -317,7 +323,7 @@ function updatePerformanceDisplay() {
     setLiveStatLabel(els.timerValue, "Practice");
     setLiveStatLabel(els.accuracyValue, "ETA");
     els.timerValue.textContent = formatDuration(state.practice.activeMs);
-    els.accuracyValue.textContent = formatEstimate(currentLearnEstimateMs());
+    els.accuracyValue.textContent = formatLearnEstimate(currentLearnEstimateMs());
     return;
   }
 
@@ -948,7 +954,7 @@ function requiredLearnTargetNotes(target, step = currentLearnStep()) {
 
 function learnStatusText(step = currentLearnStep()) {
   if (!step) return "Learning complete";
-  return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL} - Practice ${formatDuration(state.practice.activeMs)} - ETA ${formatEstimate(currentLearnEstimateMs())}`;
+  return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL} - Practice ${formatDuration(state.practice.activeMs)} - ETA ${formatLearnEstimate(currentLearnEstimateMs())}`;
 }
 
 function shouldHideLearnMusic() {
