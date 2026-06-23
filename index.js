@@ -753,18 +753,18 @@ function rangeHasMultipleVoices(startIndex, endIndex) {
 function makeLearnPhases(stepBase, startIndex, endIndex) {
   const phases = rangeHasMultipleVoices(startIndex, endIndex)
     ? [
-      { id: "left", label: "Left hand only", loose: true },
-      { id: "right", label: "Right hand only", loose: true },
-      { id: "both", label: "Both hands", loose: false }
+      { id: "left", label: "Left hand only", handStaff: "bass" },
+      { id: "right", label: "Right hand only", handStaff: "treble" },
+      { id: "both", label: "Both hands", handStaff: null }
     ]
-    : [{ id: "both", label: "Both hands", loose: false }];
+    : [{ id: "both", label: "Both hands", handStaff: null }];
 
   return phases.map((phase) => ({
     ...stepBase,
     id: `${stepBase.id}:${phase.id}`,
     phase: phase.id,
     phaseLabel: phase.label,
-    loose: phase.loose
+    handStaff: phase.handStaff
   }));
 }
 
@@ -825,6 +825,11 @@ function learnStepTargets(step) {
   return state.importedSourceTargets.slice(start, end);
 }
 
+function learnTargetNotes(target, step = currentLearnStep()) {
+  const notes = targetNotes(target);
+  return step?.handStaff ? notes.filter((note) => note.staff === step.handStaff) : notes;
+}
+
 function learnStatusText(step = currentLearnStep()) {
   if (!step) return "Learning complete";
   return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL}`;
@@ -881,7 +886,7 @@ function startCurrentLearnStep(feedbackMessage = "") {
 
   state.notes = learnStepTargets(step);
   clearTargetRunState(state.notes);
-  state.current = firstPlayableTargetIndex(state.notes, step.practiceStartOffset);
+  state.current = nextLearnPlayableIndex(step.practiceStartOffset);
   if (state.current >= step.practiceEndOffset) {
     state.learn.stepIndex += 1;
     state.learn.streak = 0;
@@ -1765,8 +1770,9 @@ function learnPracticeEnd(step = currentLearnStep()) {
 
 function nextLearnPlayableIndex(startIndex) {
   const endIndex = learnPracticeEnd();
-  let index = Math.max(startIndex, currentLearnStep()?.practiceStartOffset || 0);
-  while (index < endIndex && !targetNotes(state.notes[index]).length) index += 1;
+  const step = currentLearnStep();
+  let index = Math.max(startIndex, step?.practiceStartOffset || 0);
+  while (index < endIndex && !learnTargetNotes(state.notes[index], step).length) index += 1;
   return index;
 }
 
@@ -1817,14 +1823,6 @@ function finishLearnTarget(targetIndex) {
   renderLearnOverlay();
 }
 
-function findLooseLearnMatch(midi) {
-  const endIndex = learnPracticeEnd();
-  for (let index = state.current; index < endIndex; index += 1) {
-    if (targetNotes(state.notes[index]).some((note) => note.midi === midi)) return index;
-  }
-  return -1;
-}
-
 function handleLearnPlayedNote(midi) {
   const step = currentLearnStep();
   if (!step) return;
@@ -1834,19 +1832,9 @@ function handleLearnPlayedNote(midi) {
     return;
   }
 
-  if (step.loose) {
-    const targetIndex = findLooseLearnMatch(midi);
-    if (targetIndex < 0) {
-      resetCurrentLearnAttempt(`Heard ${midiToName(midi)}`);
-      return;
-    }
-    finishLearnTarget(targetIndex);
-    return;
-  }
-
   const targetIndex = state.current;
   const target = state.notes[targetIndex];
-  const expectedMidi = targetNotes(target).map((note) => note.midi);
+  const expectedMidi = learnTargetNotes(target, step).map((note) => note.midi);
   if (!expectedMidi.includes(midi)) {
     resetCurrentLearnAttempt(`Heard ${midiToName(midi)}`);
     return;
