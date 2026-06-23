@@ -20,6 +20,8 @@ const MULTI_VOICE_REST_FLOOR_KEYS = {
 };
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 const LEARN_STORAGE_KEY = "sightline-learn-v1";
+const PRACTICE_STORAGE_KEY = "sightline-practice-v1";
+const PRACTICE_IDLE_LIMIT_MS = 60000;
 const LEARN_STREAK_GOAL = 4;
 const LEARN_HIDE_AFTER_STREAK = 2;
 // Static sites cannot enumerate their directory, so repository scores are declared here.
@@ -86,6 +88,10 @@ const state = {
     stepIndex: 0,
     streak: 0,
     completed: false
+  },
+  practice: {
+    activeMs: 0,
+    lastInputAt: null
   }
 };
 let renderedTargetNotes = new Map();
@@ -144,6 +150,22 @@ function writeLearnProgress(progress) {
   }
 }
 
+function readPracticeStats() {
+  try {
+    return JSON.parse(localStorage.getItem(PRACTICE_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writePracticeStats(stats) {
+  try {
+    localStorage.setItem(PRACTICE_STORAGE_KEY, JSON.stringify(stats));
+  } catch {
+    // Practice time still works for this session when storage is unavailable.
+  }
+}
+
 function learnProgressForScore(scoreId) {
   return readLearnProgress()[scoreId] || null;
 }
@@ -155,16 +177,43 @@ function formatLearnProgress(progress) {
   return `Step ${Math.min(progress.stepIndex + 1, progress.totalSteps)} of ${progress.totalSteps}`;
 }
 
+function learnWorkUnits(progress) {
+  if (!progress?.totalSteps) return { completed: 0, total: 0 };
+  const total = progress.totalSteps * LEARN_STREAK_GOAL;
+  const completed = Math.min(
+    total,
+    ((progress.stepIndex || 0) * LEARN_STREAK_GOAL) + (progress.streak || 0)
+  );
+  return { completed, total };
+}
+
+function estimateLearnRemainingMs(progress, activeMs) {
+  if (progress?.completed) return 0;
+  const { completed, total } = learnWorkUnits(progress);
+  if (!completed || !total || !Number.isFinite(activeMs) || activeMs <= 0) return null;
+  return (activeMs / completed) * Math.max(0, total - completed);
+}
+
+function formatEstimate(durationMs) {
+  return durationMs === null ? "—" : formatDuration(durationMs);
+}
+
+function currentLearnProgressSnapshot() {
+  return {
+    stepIndex: state.learn.stepIndex,
+    streak: state.learn.streak,
+    totalSteps: state.learn.steps.length,
+    measureCount: state.importedMeasureCount,
+    completed: state.learn.completed
+  };
+}
+
 function saveCurrentLearnProgress() {
   if (!state.learn.active || !state.activeScore) return;
 
   const progress = readLearnProgress();
   progress[state.activeScore.id] = {
-    stepIndex: state.learn.stepIndex,
-    streak: state.learn.streak,
-    totalSteps: state.learn.steps.length,
-    measureCount: state.importedMeasureCount,
-    completed: state.learn.completed,
+    ...currentLearnProgressSnapshot(),
     updatedAt: new Date().toISOString()
   };
   writeLearnProgress(progress);
@@ -180,6 +229,47 @@ function formatDuration(durationMs) {
 
 function formatTempo(tempo) {
   return Number.isFinite(tempo) ? `${Math.round(tempo)} BPM` : "—";
+}
+
+function loadPracticeForActiveScore() {
+  const entry = state.activeScore ? readPracticeStats()[state.activeScore.id] : null;
+  state.practice.activeMs = Number.isFinite(entry?.activeMs) ? entry.activeMs : 0;
+  state.practice.lastInputAt = null;
+}
+
+function saveActivePracticeStats() {
+  if (!state.activeScore) return;
+
+  const stats = readPracticeStats();
+  stats[state.activeScore.id] = {
+    activeMs: state.practice.activeMs,
+    updatedAt: new Date().toISOString()
+  };
+  writePracticeStats(stats);
+}
+
+function recordPracticeInputTime(now = performance.now()) {
+  if (!state.activeScore) return;
+
+  if (state.practice.lastInputAt !== null) {
+    const gapMs = now - state.practice.lastInputAt;
+    if (gapMs >= 0 && gapMs <= PRACTICE_IDLE_LIMIT_MS) {
+      state.practice.activeMs += gapMs;
+    }
+  }
+  state.practice.lastInputAt = now;
+  saveActivePracticeStats();
+  updatePerformanceDisplay();
+}
+
+function currentLearnEstimateMs() {
+  return estimateLearnRemainingMs(currentLearnProgressSnapshot(), state.practice.activeMs);
+}
+
+function setLiveStatLabel(valueElement, label) {
+  const textNode = Array.from(valueElement.parentNode.childNodes)
+    .find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+  if (textNode) textNode.textContent = ` ${label}`;
 }
 
 function currentMeasureResults() {
@@ -223,6 +313,16 @@ function tempoForDuration(durationMs) {
 }
 
 function updatePerformanceDisplay() {
+  if (state.learn.active) {
+    setLiveStatLabel(els.timerValue, "Practice");
+    setLiveStatLabel(els.accuracyValue, "ETA");
+    els.timerValue.textContent = formatDuration(state.practice.activeMs);
+    els.accuracyValue.textContent = formatEstimate(currentLearnEstimateMs());
+    return;
+  }
+
+  setLiveStatLabel(els.timerValue, "Time");
+  setLiveStatLabel(els.accuracyValue, "Accuracy");
   const elapsed = state.performanceStartedAt === null
     ? state.performanceElapsedMs
     : performance.now() - state.performanceStartedAt;
@@ -288,11 +388,14 @@ function recordCompletedPerformance() {
 function renderScoreLibrary() {
   const stats = readPerformanceStats();
   const learnProgress = readLearnProgress();
+  const practiceStats = readPracticeStats();
   els.scoreLibrary.innerHTML = "";
 
   MUSIC_XML_LIBRARY.forEach((score) => {
     const result = stats[score.id];
     const learning = learnProgress[score.id];
+    const practice = practiceStats[score.id];
+    const estimateMs = estimateLearnRemainingMs(learning, practice?.activeMs || 0);
     const card = document.createElement("article");
     card.className = "score-card grid gap-4 border border-slate-200 p-4 lg:grid-cols-[1fr_2fr_auto] lg:items-center";
     card.innerHTML = `
@@ -310,6 +413,8 @@ function renderScoreLibrary() {
         <div><dt>Best tempo</dt><dd>${formatTempo(result?.bestTempo)}</dd></div>
         <div><dt>Last tempo</dt><dd>${formatTempo(result?.lastTempo)}</dd></div>
         <div><dt>Learn</dt><dd>${formatLearnProgress(learning)}</dd></div>
+        <div><dt>Practice time</dt><dd>${formatDuration(practice?.activeMs)}</dd></div>
+        <div><dt>Estimate</dt><dd>${formatEstimate(estimateMs)}</dd></div>
       </dl>
       <div class="score-actions flex flex-wrap gap-2 justify-self-start">
         <button class="bg-teal-700 px-4 py-2 text-white hover:bg-teal-800" type="button" data-action="play">Play score</button>
@@ -328,6 +433,7 @@ function renderScoreLibrary() {
 
 function showLibrary() {
   stopPerformanceTimer();
+  saveActivePracticeStats();
   if (state.learn.active) saveCurrentLearnProgress();
   state.learn.active = false;
   state.fullScoreView = false;
@@ -805,6 +911,10 @@ function buildLearnSteps() {
       addMeasureRange(endMeasure - 3, endMeasure, "block");
     }
 
+    if ((endMeasure + 1) % 8 === 0) {
+      addMeasureRange(endMeasure - 7, endMeasure, "block");
+    }
+
     if ((endMeasure + 1) % 16 === 0) {
       addMeasureRange(0, endMeasure, "from-start");
     }
@@ -838,7 +948,7 @@ function requiredLearnTargetNotes(target, step = currentLearnStep()) {
 
 function learnStatusText(step = currentLearnStep()) {
   if (!step) return "Learning complete";
-  return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL}`;
+  return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL} - Practice ${formatDuration(state.practice.activeMs)} - ETA ${formatEstimate(currentLearnEstimateMs())}`;
 }
 
 function shouldHideLearnMusic() {
@@ -993,6 +1103,7 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null, options = 
     ? scoreMeta.title
     : `${scoreMeta.title} — ${converted.keyValue}`;
   state.activeScore = { ...scoreMeta, displayTitle };
+  loadPracticeForActiveScore();
   if (!options.learn) state.learn.active = false;
   state.importedSourceTargets = converted.targets;
   state.importedMeasureCount = converted.measureCount;
@@ -1788,6 +1899,7 @@ function resetCurrentLearnAttempt(message, type = "bad") {
   clearTargetRunState(state.notes);
   state.current = nextLearnPlayableIndex(step?.practiceStartOffset || 0);
   saveCurrentLearnProgress();
+  updatePerformanceDisplay();
   setFeedback(message, type);
   drawScore();
 }
@@ -1807,6 +1919,7 @@ function completeLearnAttempt() {
   saveCurrentLearnProgress();
   clearTargetRunState(state.notes);
   state.current = nextLearnPlayableIndex(step?.practiceStartOffset || 0);
+  updatePerformanceDisplay();
   setFeedback(learnStatusText(step), "good");
   drawScore();
 }
@@ -1920,6 +2033,7 @@ function onMidiMessage(event) {
   const command = status & 0xf0;
   if (command === 0x90 && velocity > 0) {
     state.heldMidi.add(note);
+    recordPracticeInputTime();
     handlePlayedNote(note);
   } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
     state.heldMidi.delete(note);
@@ -2023,6 +2137,7 @@ function handleComputerKey(event) {
     const notes = state.learn.active ? requiredLearnTargetNotes(target) : requiredTargetNotes(target);
     if (!notes.length) return;
     notes.forEach((note) => state.heldMidi.add(note.midi));
+    recordPracticeInputTime();
     handlePlayedNote(notes[notes.length - 1].midi);
     notes.forEach((note) => state.heldMidi.delete(note.midi));
   }
