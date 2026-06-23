@@ -21,6 +21,7 @@ const MULTI_VOICE_REST_FLOOR_KEYS = {
 const PERFORMANCE_STORAGE_KEY = "sightline-performance-v1";
 const LEARN_STORAGE_KEY = "sightline-learn-v1";
 const LEARN_STREAK_GOAL = 10;
+const LEARN_HIDE_AFTER_STREAK = 5;
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
   {
@@ -827,6 +828,29 @@ function learnStepTargets(step) {
 function learnStatusText(step = currentLearnStep()) {
   if (!step) return "Learning complete";
   return `${step.label} - ${step.phaseLabel} - ${state.learn.streak}/${LEARN_STREAK_GOAL}`;
+}
+
+function shouldHideLearnMusic() {
+  return state.learn.active && state.learn.streak >= LEARN_HIDE_AFTER_STREAK;
+}
+
+function renderHiddenLearnMusic(step = currentLearnStep()) {
+  renderedTargetNotes = new Map();
+  els.score.innerHTML = "";
+  els.score.style.minHeight = "100vh";
+
+  const panel = document.createElement("div");
+  panel.className = "grid min-h-screen items-center bg-white p-6 text-center";
+  panel.innerHTML = `
+    <div>
+      <p class="text-sm font-bold text-slate-500 uppercase">Music hidden</p>
+      <h3 class="text-2xl">${step?.label || "Learning step"}</h3>
+      <p class="mt-3 text-xl">${step?.phaseLabel || "Play from memory"}</p>
+      <p class="mt-3 text-sm text-slate-500">Repetitions 6-10 are from memory.</p>
+    </div>
+  `;
+  els.score.append(panel);
+  renderLearnOverlay();
 }
 
 function renderLearnOverlay() {
@@ -1646,6 +1670,11 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
 function drawScore() {
   if (state.learn.active) {
     const step = currentLearnStep();
+    if (shouldHideLearnMusic()) {
+      renderHiddenLearnMusic(step);
+      updateNextSystemPreview();
+      return;
+    }
     const measureCount = step?.renderMeasureCount || 1;
     drawVexScore(els.score, state.notes, state.current, state.keyValue, {
       systemCount: Math.ceil(measureCount / MEASURES_PER_SYSTEM),
