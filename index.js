@@ -25,6 +25,35 @@ const PRACTICE_IDLE_LIMIT_MS = 60000;
 const LEARN_ESTIMATE_ROUND_MS = 5 * 60000;
 const LEARN_STREAK_GOAL = 4;
 const LEARN_HIDE_AFTER_STREAK = 2;
+const ARPEGGIO_MEASURE_COUNT = 16;
+const ARPEGGIO_SLOTS_PER_MEASURE = 16;
+const ARPEGGIO_DIRECTION_BIAS = 0.75;
+const ARPEGGIO_MIN_MIDI = 38;
+const ARPEGGIO_MAX_MIDI = 95;
+const ARPEGGIO_CHORDS = [
+  { degree: 0, name: "I", intervals: [0, 2, 4] },
+  { degree: 1, name: "ii", intervals: [0, 2, 4] },
+  { degree: 2, name: "iii", intervals: [0, 2, 4] },
+  { degree: 3, name: "IV", intervals: [0, 2, 4] },
+  { degree: 4, name: "V", intervals: [0, 2, 4] },
+  { degree: 5, name: "vi", intervals: [0, 2, 4] },
+  { degree: 6, name: "vii", intervals: [0, 2, 4] }
+];
+const ARPEGGIO_KEY_SIGNATURES = {
+  C: 0,
+  G: 1,
+  D: 2,
+  A: 3,
+  E: 4,
+  B: 5,
+  "F#": 6,
+  F: -1,
+  Bb: -2,
+  Eb: -3,
+  Ab: -4,
+  Db: -5
+};
+const NATURAL_SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 // Static sites cannot enumerate their directory, so repository scores are declared here.
 const MUSIC_XML_LIBRARY = [
   {
@@ -103,6 +132,8 @@ const els = {
   playerFooter: document.querySelector("#playerFooter"),
   scoreLibrary: document.querySelector("#scoreLibrary"),
   importScore: document.querySelector("#importScore"),
+  generateArpeggioScore: document.querySelector("#generateArpeggioScore"),
+  arpeggioKey: document.querySelector("#arpeggioKey"),
   backToLibrary: document.querySelector("#backToLibrary"),
   restartPiece: document.querySelector("#restartPiece"),
   midiStatus: document.querySelector("#midiStatus"),
@@ -1136,6 +1167,215 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null, options = 
   }
 }
 
+function chooseArpeggioChords(measureCount) {
+  const chords = [];
+  let previousChord = null;
+  for (let measure = 0; measure < measureCount; measure += 1) {
+    const choices = ARPEGGIO_CHORDS.filter((chord) => chord.name !== previousChord?.name);
+    const chord = choices[Math.floor(Math.random() * choices.length)];
+    chords.push(chord);
+    previousChord = chord;
+  }
+  return chords;
+}
+
+function fifthsForArpeggioKey(keyValue) {
+  return ARPEGGIO_KEY_SIGNATURES[keyValue] ?? 0;
+}
+
+function tonicStepForArpeggioKey(keyValue) {
+  const fifths = fifthsForArpeggioKey(keyValue);
+  const tonicSteps = ["C", "G", "D", "A", "E", "B", "F"];
+  return tonicSteps[((fifths % 7) + 7) % 7];
+}
+
+function tonicPitchClassForFifths(fifths) {
+  return ((fifths * 7) % 12 + 12) % 12;
+}
+
+function tonicMidiForArpeggioKey(keyValue) {
+  let semitoneShift = tonicPitchClassForFifths(fifthsForArpeggioKey(keyValue));
+  if (semitoneShift > 6) semitoneShift -= 12;
+  return 60 + semitoneShift;
+}
+
+function keyAlterForStep(keyValue, step) {
+  const key = KEYS[keyValue] || KEYS.C;
+  if (!key.steps.includes(step)) return 0;
+  return key.type === "sharp" ? 1 : -1;
+}
+
+function generatedPitchForDiatonicOffset(keyValue, diatonicOffset) {
+  const tonicStep = tonicStepForArpeggioKey(keyValue);
+  const tonicStepIndex = DIATONIC_STEPS.indexOf(tonicStep);
+  const tonicOctave = Math.floor(tonicMidiForArpeggioKey(keyValue) / 12) - 1;
+  const absoluteStep = (tonicOctave * 7) + tonicStepIndex + diatonicOffset;
+  const stepIndex = ((absoluteStep % 7) + 7) % 7;
+  const step = DIATONIC_STEPS[stepIndex];
+  const octave = Math.floor(absoluteStep / 7);
+  const midi = ((octave + 1) * 12) + NATURAL_SEMITONES[step] + keyAlterForStep(keyValue, step);
+  return { midi, step, octave };
+}
+
+function arpeggioBeamsForSlot(slot) {
+  const slotInBeat = slot % 4;
+  return [{
+    number: "1",
+    type: slotInBeat === 0 ? "begin" : slotInBeat === 3 ? "end" : "continue"
+  }];
+}
+
+function generatedStaffForMidi(midi) {
+  return midi < 60 ? "bass" : "treble";
+}
+
+function transposeGeneratedPitchByOctaves(pitch, octaves) {
+  return {
+    ...pitch,
+    midi: pitch.midi + (octaves * 12),
+    octave: pitch.octave + octaves
+  };
+}
+
+function closestOctavePitch(pitch, referenceMidi) {
+  const candidates = [-3, -2, -1, 0, 1, 2, 3]
+    .map((octaves) => transposeGeneratedPitchByOctaves(pitch, octaves))
+    .filter((candidate) => candidate.midi >= ARPEGGIO_MIN_MIDI && candidate.midi <= ARPEGGIO_MAX_MIDI);
+  if (!candidates.length) return pitch;
+  if (!Number.isFinite(referenceMidi)) {
+    return candidates.reduce((best, candidate) => (
+      Math.abs(candidate.midi - pitch.midi) < Math.abs(best.midi - pitch.midi) ? candidate : best
+    ));
+  }
+  return candidates.reduce((best, candidate) => (
+    Math.abs(candidate.midi - referenceMidi) < Math.abs(best.midi - referenceMidi)
+      ? candidate
+      : best
+  ));
+}
+
+function generatedStaffForBeat(pitches, slot) {
+  const beatStart = Math.floor(slot / 4) * 4;
+  const beatPitches = pitches.slice(beatStart, beatStart + 4);
+  const bassCount = beatPitches.filter((pitch) => generatedStaffForMidi(pitch.midi) === "bass").length;
+  return bassCount > beatPitches.length / 2 ? "bass" : "treble";
+}
+
+function arpeggioTargetForPitch(pitch, slot, staff) {
+  return {
+    midi: pitch.midi,
+    step: pitch.step,
+    octave: pitch.octave,
+    accidental: "",
+    keyAccidental: "",
+    staff,
+    voice: "1",
+    duration: 0.25,
+    type: "16th",
+    dots: 0,
+    stemDirection: "up",
+    beams: arpeggioBeamsForSlot(slot)
+  };
+}
+
+function chordPitchPoolForRoot(keyValue, chord, rootPitch) {
+  const baseRootPitch = generatedPitchForDiatonicOffset(keyValue, chord.degree);
+  const octaveShift = (rootPitch.midi - baseRootPitch.midi) / 12;
+  const pitchesByMidi = new Map();
+  for (let octave = -3; octave <= 3; octave += 1) {
+    chord.intervals.forEach((interval) => {
+      const pitch = generatedPitchForDiatonicOffset(keyValue, chord.degree + interval + (octave * 7));
+      const shiftedPitch = transposeGeneratedPitchByOctaves(pitch, octaveShift);
+      if (shiftedPitch.midi >= ARPEGGIO_MIN_MIDI && shiftedPitch.midi <= ARPEGGIO_MAX_MIDI) {
+        pitchesByMidi.set(shiftedPitch.midi, shiftedPitch);
+      }
+    });
+  }
+  pitchesByMidi.set(rootPitch.midi, rootPitch);
+  return [...pitchesByMidi.values()].sort((left, right) => left.midi - right.midi);
+}
+
+function reverseArpeggioBiasAtRangeEdge(pitches, currentPitch, biasDirection) {
+  const lowestMidi = pitches[0]?.midi;
+  const highestMidi = pitches[pitches.length - 1]?.midi;
+  if (currentPitch.midi <= lowestMidi && biasDirection === "down") return "up";
+  if (currentPitch.midi >= highestMidi && biasDirection === "up") return "down";
+  return biasDirection;
+}
+
+function nextBiasedArpeggioPitch(pitches, currentPitch, biasDirection) {
+  const direction = reverseArpeggioBiasAtRangeEdge(pitches, currentPitch, biasDirection);
+  const higher = pitches.filter((pitch) => pitch.midi > currentPitch.midi);
+  const lower = pitches.filter((pitch) => pitch.midi < currentPitch.midi).reverse();
+  const preferHigher = direction === "up"
+    ? Math.random() < ARPEGGIO_DIRECTION_BIAS
+    : Math.random() >= ARPEGGIO_DIRECTION_BIAS;
+  const primary = preferHigher ? higher : lower;
+  const fallback = preferHigher ? lower : higher;
+  return {
+    biasDirection: direction,
+    pitch: primary[0] || fallback[0] || currentPitch
+  };
+}
+
+function buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi) {
+  const baseRootPitch = generatedPitchForDiatonicOffset(keyValue, chord.degree);
+  const rootPitch = closestOctavePitch(baseRootPitch, previousArpeggioEndMidi);
+  const pitchPool = chordPitchPoolForRoot(keyValue, chord, rootPitch);
+  let biasDirection = Math.random() < 0.5 ? "up" : "down";
+  const pitches = [rootPitch];
+  while (pitches.length < ARPEGGIO_SLOTS_PER_MEASURE) {
+    const next = nextBiasedArpeggioPitch(pitchPool, pitches[pitches.length - 1], biasDirection);
+    biasDirection = next.biasDirection;
+    pitches.push(next.pitch);
+  }
+  const targets = pitches.map((pitch, slot) => (
+    arpeggioTargetForPitch(pitch, slot, generatedStaffForBeat(pitches, slot))
+  ));
+  return {
+    endMidi: targets[targets.length - 1]?.midi ?? rootPitch.midi,
+    targets
+  };
+}
+
+function generateArpeggioTargets(keyValue) {
+  const targets = [];
+  let previousArpeggioEndMidi = null;
+  chooseArpeggioChords(ARPEGGIO_MEASURE_COUNT).forEach((chord) => {
+    const measure = buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi);
+    targets.push(...measure.targets);
+    previousArpeggioEndMidi = measure.endMidi;
+  });
+  return targets;
+}
+
+function loadRandomArpeggioScore() {
+  const keyValue = els.arpeggioKey?.value || "C";
+  const displayTitle = `Random arpeggio score - ${keyValue} major`;
+  state.activeScore = {
+    id: `generated-arpeggiated-chords:${keyValue}`,
+    file: "Generated",
+    title: "Random arpeggio score",
+    composer: "Generated practice",
+    displayTitle
+  };
+  loadPracticeForActiveScore();
+  state.learn.active = false;
+  state.importedSourceTargets = generateArpeggioTargets(keyValue);
+  state.importedMeasureCount = ARPEGGIO_MEASURE_COUNT;
+  state.keyValue = keyValue;
+  state.totalQuarterNoteBeats = ARPEGGIO_MEASURE_COUNT * 4;
+  state.beatsPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE;
+  state.beatValue = 16;
+  state.slotsPerQuarter = 4;
+  state.timeSignature = "4/4";
+  els.pieceTitle.textContent = displayTitle;
+  els.score.style.maxHeight = "";
+  els.score.style.overflowY = "";
+  showPlayer();
+  rebuildImportedPages(`${keyValue} arpeggio score ready`);
+}
+
 async function loadMusicXmlFile(file) {
   if (!file) return;
   showPlayer();
@@ -2153,6 +2393,7 @@ els.connectMidi.addEventListener("click", connectMidi);
 els.midiInputs.addEventListener("change", selectMidiInput);
 els.musicXmlFile.addEventListener("change", () => loadMusicXmlFile(els.musicXmlFile.files[0]));
 els.importScore.addEventListener("click", () => els.musicXmlFile.click());
+els.generateArpeggioScore.addEventListener("click", loadRandomArpeggioScore);
 els.backToLibrary.addEventListener("click", showLibrary);
 els.restartPiece.addEventListener("click", () => {
   if (state.learn.active) {
