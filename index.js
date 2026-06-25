@@ -26,9 +26,11 @@ const LEARN_ESTIMATE_ROUND_MS = 5 * 60000;
 const LEARN_STREAK_GOAL = 4;
 const LEARN_HIDE_AFTER_STREAK = 2;
 const ARPEGGIO_MEASURE_COUNT = 64;
+const ARPEGGIO_SYSTEMS_PER_PAGE = 8;
 const ARPEGGIO_SLOTS_PER_MEASURE = 16;
-const ARPEGGIO_MEASURES_PER_CHORD = 2;
+const ARPEGGIO_MEASURES_PER_CHORD = 4;
 const ARPEGGIO_DIRECTION_BIAS = 0.75;
+const ARPEGGIO_START_MAX_INTERVAL = 7;
 const ARPEGGIO_MIN_MIDI = 38;
 const ARPEGGIO_MAX_MIDI = 95;
 const ARPEGGIO_CHORDS = [
@@ -101,6 +103,7 @@ const state = {
   beatValue: 4,
   slotsPerQuarter: 1,
   timeSignature: "4/4",
+  systemsPerPage: SYSTEMS_PER_PAGE,
   importedPages: null,
   importedSourceTargets: null,
   importedPageIndex: -1,
@@ -316,7 +319,7 @@ function currentMeasureResults() {
     return { correct: 0, completed: 0, total };
   }
 
-  const measuresPerPage = SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM;
+  const measuresPerPage = state.systemsPerPage * MEASURES_PER_SYSTEM;
   const completed = state.performanceComplete
     ? total
     : Math.min(
@@ -1049,7 +1052,7 @@ function startCurrentLearnStep(feedbackMessage = "") {
     return;
   }
 
-  state.importedPageIndex = Math.floor(step.renderStartMeasure / (SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM));
+  state.importedPageIndex = Math.floor(step.renderStartMeasure / (state.systemsPerPage * MEASURES_PER_SYSTEM));
   els.score.style.maxHeight = "100vh";
   els.score.style.overflowY = "auto";
   setFeedback(feedbackMessage || learnStatusText(step), "good");
@@ -1114,7 +1117,7 @@ function startFullScoreView() {
 
 function rebuildImportedPages(feedbackMessage) {
   const targets = state.importedSourceTargets;
-  const pageSize = SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  const pageSize = state.systemsPerPage * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
   const pages = [];
   for (let index = 0; index < targets.length; index += pageSize) {
     const page = targets.slice(index, index + pageSize);
@@ -1153,6 +1156,7 @@ function importMusicXml(xmlText, scoreMeta, targetSharpsFlats = null, options = 
   state.beatValue = converted.beatValue;
   state.slotsPerQuarter = converted.slotsPerQuarter;
   state.timeSignature = converted.timeSignature;
+  state.systemsPerPage = SYSTEMS_PER_PAGE;
   els.pieceTitle.textContent = displayTitle;
   if (options.learn) {
     startLearnMode();
@@ -1279,9 +1283,9 @@ function arpeggioTargetForPitch(pitch, slot, staff) {
   };
 }
 
-function chordPitchPoolForRoot(keyValue, chord, rootPitch) {
+function chordPitchPoolForAnchor(keyValue, chord, anchorPitch) {
   const baseRootPitch = generatedPitchForDiatonicOffset(keyValue, chord.degree);
-  const octaveShift = (rootPitch.midi - baseRootPitch.midi) / 12;
+  const octaveShift = (anchorPitch.midi - baseRootPitch.midi) / 12;
   const pitchesByMidi = new Map();
   for (let octave = -3; octave <= 3; octave += 1) {
     chord.intervals.forEach((interval) => {
@@ -1292,8 +1296,27 @@ function chordPitchPoolForRoot(keyValue, chord, rootPitch) {
       }
     });
   }
-  pitchesByMidi.set(rootPitch.midi, rootPitch);
+  pitchesByMidi.set(anchorPitch.midi, anchorPitch);
   return [...pitchesByMidi.values()].sort((left, right) => left.midi - right.midi);
+}
+
+function closestChordPitch(pitches, referenceMidi) {
+  return pitches.reduce((best, candidate) => (
+    Math.abs(candidate.midi - referenceMidi) < Math.abs(best.midi - referenceMidi) ? candidate : best
+  ));
+}
+
+function chooseStartingChordPitch(pitches, referenceMidi) {
+  if (!Number.isFinite(referenceMidi)) {
+    return pitches[Math.floor(Math.random() * pitches.length)] || null;
+  }
+  const nearbyPitches = pitches.filter(
+    (pitch) => Math.abs(pitch.midi - referenceMidi) <= ARPEGGIO_START_MAX_INTERVAL
+  );
+  if (nearbyPitches.length) {
+    return nearbyPitches[Math.floor(Math.random() * nearbyPitches.length)];
+  }
+  return closestChordPitch(pitches, referenceMidi);
 }
 
 function reverseArpeggioBiasAtRangeEdge(pitches, currentPitch, biasDirection) {
@@ -1321,10 +1344,11 @@ function nextBiasedArpeggioPitch(pitches, currentPitch, biasDirection) {
 
 function buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi) {
   const baseRootPitch = generatedPitchForDiatonicOffset(keyValue, chord.degree);
-  const rootPitch = closestOctavePitch(baseRootPitch, previousArpeggioEndMidi);
-  const pitchPool = chordPitchPoolForRoot(keyValue, chord, rootPitch);
+  const anchorPitch = closestOctavePitch(baseRootPitch, previousArpeggioEndMidi);
+  const pitchPool = chordPitchPoolForAnchor(keyValue, chord, anchorPitch);
   let biasDirection = Math.random() < 0.5 ? "up" : "down";
-  const pitches = [rootPitch];
+  const startPitch = chooseStartingChordPitch(pitchPool, previousArpeggioEndMidi) || anchorPitch;
+  const pitches = [startPitch];
   while (pitches.length < ARPEGGIO_SLOTS_PER_MEASURE) {
     const next = nextBiasedArpeggioPitch(pitchPool, pitches[pitches.length - 1], biasDirection);
     biasDirection = next.biasDirection;
@@ -1334,7 +1358,7 @@ function buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi) {
     arpeggioTargetForPitch(pitch, slot, generatedStaffForBeat(pitches, slot))
   ));
   return {
-    endMidi: targets[targets.length - 1]?.midi ?? rootPitch.midi,
+    endMidi: targets[targets.length - 1]?.midi ?? startPitch.midi,
     targets
   };
 }
@@ -1374,6 +1398,7 @@ function loadRandomArpeggioScore() {
   state.beatValue = 16;
   state.slotsPerQuarter = 4;
   state.timeSignature = "4/4";
+  state.systemsPerPage = ARPEGGIO_SYSTEMS_PER_PAGE;
   els.pieceTitle.textContent = displayTitle;
   els.score.style.maxHeight = "";
   els.score.style.overflowY = "";
@@ -2062,7 +2087,8 @@ function drawScore() {
     });
   } else {
     drawVexScore(els.score, state.notes, state.current, state.keyValue, {
-      measureNumberOffset: state.importedPageIndex * SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM
+      systemCount: state.systemsPerPage,
+      measureNumberOffset: state.importedPageIndex * state.systemsPerPage * MEASURES_PER_SYSTEM
     });
   }
   updateNextSystemPreview();
@@ -2082,7 +2108,7 @@ function updateNextSystemPreview() {
     existingPreview?.remove();
     return;
   }
-  const finalSystemStart = (SYSTEMS_PER_PAGE - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
+  const finalSystemStart = (state.systemsPerPage - 1) * MEASURES_PER_SYSTEM * state.beatsPerMeasure;
   const previewData = state.current >= finalSystemStart ? nextSystemPreviewData() : null;
 
   if (!previewData) {
@@ -2101,7 +2127,7 @@ function updateNextSystemPreview() {
     drawVexScore(preview, previewData.notes, -1, previewData.keyValue, {
       systemCount: 1,
       height: 340,
-      measureNumberOffset: (state.importedPageIndex + 1) * SYSTEMS_PER_PAGE * MEASURES_PER_SYSTEM
+      measureNumberOffset: (state.importedPageIndex + 1) * state.systemsPerPage * MEASURES_PER_SYSTEM
     });
   } finally {
     renderedTargetNotes = currentRenderedTargets;
