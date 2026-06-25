@@ -25,8 +25,9 @@ const PRACTICE_IDLE_LIMIT_MS = 60000;
 const LEARN_ESTIMATE_ROUND_MS = 5 * 60000;
 const LEARN_STREAK_GOAL = 4;
 const LEARN_HIDE_AFTER_STREAK = 2;
-const ARPEGGIO_MEASURE_COUNT = 16;
+const ARPEGGIO_MEASURE_COUNT = 64;
 const ARPEGGIO_SLOTS_PER_MEASURE = 16;
+const ARPEGGIO_MEASURES_PER_CHORD = 2;
 const ARPEGGIO_DIRECTION_BIAS = 0.75;
 const ARPEGGIO_MIN_MIDI = 38;
 const ARPEGGIO_MAX_MIDI = 95;
@@ -1341,10 +1342,14 @@ function buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi) {
 function generateArpeggioTargets(keyValue) {
   const targets = [];
   let previousArpeggioEndMidi = null;
-  chooseArpeggioChords(ARPEGGIO_MEASURE_COUNT).forEach((chord) => {
-    const measure = buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi);
-    targets.push(...measure.targets);
-    previousArpeggioEndMidi = measure.endMidi;
+  const chordCount = Math.ceil(ARPEGGIO_MEASURE_COUNT / ARPEGGIO_MEASURES_PER_CHORD);
+  chooseArpeggioChords(chordCount).forEach((chord) => {
+    for (let repeat = 0; repeat < ARPEGGIO_MEASURES_PER_CHORD; repeat += 1) {
+      if (targets.length >= ARPEGGIO_MEASURE_COUNT * ARPEGGIO_SLOTS_PER_MEASURE) break;
+      const measure = buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi);
+      targets.push(...measure.targets);
+      previousArpeggioEndMidi = measure.endMidi;
+    }
   });
   return targets;
 }
