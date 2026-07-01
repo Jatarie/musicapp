@@ -2452,6 +2452,12 @@ function initializeNotation() {
     return Promise.resolve();
   }
 
+  if (window.MusicAppNotation?.initializeVexFlow) {
+    return window.MusicAppNotation.initializeVexFlow().then((result) => {
+      if (result?.reason === "fonts-unavailable") setFeedback("VexFlow fonts unavailable", "bad");
+    });
+  }
+
   if (!window.VexFlow.loadFonts || !window.VexFlow.setFonts) {
     return Promise.resolve();
   }

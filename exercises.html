@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Music exercises</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+      }
+
+      main {
+        width: min(100%, 56rem);
+        padding: clamp(1.5rem, 5vw, 3rem);
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        box-shadow: 0 20px 45px rgb(15 23 42 / 8%);
+      }
+
+      h1 { margin: 0; font-size: clamp(1.5rem, 5vw, 2rem); }
+      p { color: #475569; }
+
+      .exercise-toggle {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: .25rem;
+        margin-top: 1.5rem;
+        padding: .25rem;
+        background: #e2e8f0;
+      }
+
+      .exercise-toggle button { background: transparent; color: #475569; }
+      .exercise-toggle button:hover { background: #cbd5e1; }
+      .exercise-toggle button.active { background: #fff; color: #0f766e; box-shadow: 0 1px 3px rgb(15 23 42 / 15%); }
+
+      .mode {
+        margin: 2.25rem 0 .5rem;
+        color: #0f766e;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        text-align: center;
+        text-transform: uppercase;
+      }
+
+      .progress {
+        margin: 0 0 1rem;
+        color: #64748b;
+        font-size: .95rem;
+        text-align: center;
+      }
+
+      .progress-indicator {
+        display: none;
+        margin: 0 0 1.5rem;
+      }
+
+      .progress-indicator.visible {
+        display: block;
+      }
+
+      .progress-track {
+        overflow: hidden;
+        height: .65rem;
+        border: 1px solid #cbd5e1;
+        background: #e2e8f0;
+      }
+
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #0f766e, #14b8a6);
+        transition: width .2s ease;
+      }
+
+      .progress-detail {
+        margin: .5rem 0 0;
+        color: #64748b;
+        font-size: .85rem;
+        text-align: center;
+      }
+
+      .key-picker {
+        display: none;
+        margin: 1rem 0 1.25rem;
+      }
+
+      .key-picker.visible {
+        display: block;
+      }
+
+      .key-picker label {
+        margin-bottom: .35rem;
+        text-align: center;
+      }
+
+      .key-picker select {
+        width: 100%;
+        padding: .75rem .9rem;
+        border: 1px solid #cbd5e1;
+        font: inherit;
+        background: #fff;
+      }
+
+      .progress-chords {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+        gap: .5rem;
+        margin-top: .75rem;
+      }
+
+      .progress-chord {
+        padding: .45rem .5rem;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        text-align: center;
+      }
+
+      .progress-chord.mastered {
+        border-color: #0f766e;
+        background: #ecfeff;
+      }
+
+      .progress-chord-name {
+        display: block;
+        color: #0f172a;
+        font-size: .82rem;
+        font-weight: 700;
+      }
+
+      .progress-chord-time {
+        display: block;
+        margin-top: .15rem;
+        color: #64748b;
+        font-size: .78rem;
+      }
+
+      .degrees {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        min-height: 8rem;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(1.5rem, 14vw, 6rem);
+        line-height: 1;
+      }
+
+      .degrees.note-question { font-size: clamp(1.75rem, 8vw, 3.5rem); }
+
+      .notation-card {
+        min-height: 15rem;
+        margin-top: 1rem;
+        border: 1px solid #cbd5e1;
+        background: #fffdf8;
+      }
+
+      .notation-card.incorrect-reveal {
+        border-color: #b91c1c;
+        box-shadow: 0 0 0 3px rgb(185 28 28 / 16%);
+      }
+
+      .notation-card.hidden {
+        display: grid;
+        place-items: center;
+        color: #64748b;
+        font-size: 1rem;
+        font-weight: 650;
+      }
+
+      .arrow { color: #94a3b8; font-family: inherit; font-size: .55em; }
+
+      form { margin-top: 2rem; }
+
+      label { display: block; margin-bottom: .5rem; font-weight: 650; }
+
+      .answer-row { display: flex; gap: .75rem; }
+
+      input {
+        min-width: 0;
+        flex: 1;
+        padding: .8rem .9rem;
+        border: 1px solid #cbd5e1;
+        font: inherit;
+      }
+
+      input:focus { outline: 3px solid rgb(13 148 136 / 20%); border-color: #0f766e; }
+
+      button {
+        padding: .8rem 1.1rem;
+        border: 0;
+        background: #0f766e;
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+      }
+
+      button:hover { background: #115e59; }
+      button.secondary { width: 100%; margin-top: .75rem; background: #e2e8f0; color: #0f172a; }
+      button.secondary:hover { background: #cbd5e1; }
+
+      .feedback { min-height: 1.5rem; margin: .9rem 0 0; font-weight: 650; }
+      .feedback.correct { color: #15803d; }
+      .feedback.incorrect { color: #b91c1c; }
+
+      .hint { margin-bottom: 0; font-size: .85rem; }
+
+      @media (max-width: 30rem) {
+        .exercise-toggle { grid-template-columns: 1fr; }
+        .answer-row { flex-direction: column; }
+        .answer-row button { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Scale degree intervals</h1>
+      <p id="instructions">Name the ascending interval from the first scale degree to the second.</p>
+
+      <div class="exercise-toggle" role="group" aria-label="Exercise type">
+        <button class="active" id="intervalMode" type="button" aria-pressed="true">Intervals</button>
+        <button id="noteMode" type="button" aria-pressed="false">Name the note</button>
+        <button id="signatureMode" type="button" aria-pressed="false">Key signatures</button>
+        <button id="chordMode" type="button" aria-pressed="false">Chords</button>
+      </div>
+
+      <div class="key-picker" id="chordKeyPicker">
+        <label for="chordKeySelect">Chord key</label>
+        <select id="chordKeySelect" name="chordKey"></select>
+      </div>
+
+      <div class="mode" id="mode"></div>
+      <p class="progress" id="progress"></p>
+      <div class="progress-indicator" id="progressIndicator" aria-hidden="true">
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <p class="progress-detail" id="progressDetail"></p>
+        <div class="progress-chords" id="progressChords"></div>
+      </div>
+      <div class="degrees" aria-live="polite">
+        <span id="firstDegree"></span>
+        <span class="arrow" aria-hidden="true">&rarr;</span>
+        <span id="secondDegree"></span>
+      </div>
+      <div class="notation-card" id="notationCard" hidden aria-live="polite"></div>
+
+      <form id="answerForm" autocomplete="off">
+        <label for="answer" id="answerLabel">Interval</label>
+        <div class="answer-row">
+          <input id="answer" name="answer" placeholder="e.g. major third or M3" required autofocus>
+          <button type="submit">Check answer</button>
+        </div>
+        <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+        <button class="secondary" id="nextQuestion" type="button">New question</button>
+      </form>
+
+      <p class="hint" id="hint">Natural minor is used. Answers may be entered as names or shorthand, such as "perfect fifth" or "P5".</p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow-core.js"></script>
+    <script src="vendor/svg.min.js"></script>
+    <script src="vendor/piano-chart.umd.js"></script>
+    <script src="notation.js"></script>
+    <script>
+      const scales = {
+        major: {
+          label: "Major scale",
+          degrees: ["I", "ii", "iii", "IV", "V", "vi", "vii°"],
+          semitones: [0, 2, 4, 5, 7, 9, 11]
+        },
+        minor: {
+          label: "Natural minor scale",
+          degrees: ["i", "ii°", "III", "iv", "v", "VI", "VII"],
+          semitones: [0, 2, 3, 5, 7, 8, 10]
+        }
+      };
+
+      const intervalNames = {
+        "1,0": ["perfect unison", "P1"],
+        "2,1": ["minor second", "m2"],
+        "2,2": ["major second", "M2"],
+        "3,3": ["minor third", "m3"],
+        "3,4": ["major third", "M3"],
+        "4,5": ["perfect fourth", "P4"],
+        "4,6": ["augmented fourth", "A4", "tritone"],
+        "5,6": ["diminished fifth", "d5", "tritone"],
+        "5,7": ["perfect fifth", "P5"],
+        "6,8": ["minor sixth", "m6"],
+        "6,9": ["major sixth", "M6"],
+        "7,10": ["minor seventh", "m7"],
+        "7,11": ["major seventh", "M7"],
+        "8,12": ["perfect octave", "P8"]
+      };
+
+      const keys = {
+        major: [
+          ["C", ["C", "D", "E", "F", "G", "A", "B"]],
+          ["G", ["G", "A", "B", "C", "D", "E", "F#"]],
+          ["D", ["D", "E", "F#", "G", "A", "B", "C#"]],
+          ["A", ["A", "B", "C#", "D", "E", "F#", "G#"]],
+          ["E", ["E", "F#", "G#", "A", "B", "C#", "D#"]],
+          ["F", ["F", "G", "A", "Bb", "C", "D", "E"]],
+          ["Bb", ["Bb", "C", "D", "Eb", "F", "G", "A"]],
+          ["Eb", ["Eb", "F", "G", "Ab", "Bb", "C", "D"]]
+        ],
+        minor: [
+          ["A", ["A", "B", "C", "D", "E", "F", "G"]],
+          ["E", ["E", "F#", "G", "A", "B", "C", "D"]],
+          ["B", ["B", "C#", "D", "E", "F#", "G", "A"]],
+          ["F#", ["F#", "G#", "A", "B", "C#", "D", "E"]],
+          ["C#", ["C#", "D#", "E", "F#", "G#", "A", "B"]],
+          ["D", ["D", "E", "F", "G", "A", "Bb", "C"]],
+          ["G", ["G", "A", "Bb", "C", "D", "Eb", "F"]],
+          ["C", ["C", "D", "Eb", "F", "G", "Ab", "Bb"]]
+        ]
+      };
+
+      const keySignatures = [
+        ["G major", "1s"], ["D major", "2s"], ["A major", "3s"],
+        ["E major", "4s"], ["B major", "5s"], ["F# major", "6s"],
+        ["C# major", "7s"], ["F major", "1b"], ["Bb major", "2b"],
+        ["Eb major", "3b"], ["Ab major", "4b"], ["Db major", "5b"],
+        ["Gb major", "6b"], ["Cb major", "7b"],
+        ["E minor", "1s"], ["B minor", "2s"], ["F# minor", "3s"],
+        ["C# minor", "4s"], ["G# minor", "5s"], ["D# minor", "6s"],
+        ["A# minor", "7s"], ["D minor", "1b"], ["G minor", "2b"],
+        ["C minor", "3b"], ["F minor", "4b"], ["Bb minor", "5b"],
+        ["Eb minor", "6b"], ["Ab minor", "7b"]
+      ];
+
+      const CHORD_LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+      const CHORD_NATURAL_SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+      const CHROMATIC_ROOTS_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      const CHROMATIC_ROOTS_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+      const chordQualities = [
+        { suffix: "M", intervals: [0, 4, 7] },
+        { suffix: "m", intervals: [0, 3, 7] },
+        { suffix: "7", intervals: [0, 4, 7, 10] },
+        { suffix: "M7", intervals: [0, 4, 7, 11] },
+        { suffix: "m7", intervals: [0, 3, 7, 10] },
+        { suffix: "m7b5", intervals: [0, 3, 6, 10] },
+        { suffix: "aug", intervals: [0, 4, 8] },
+        { suffix: "dim", intervals: [0, 3, 6] }
+      ];
+      const chordDisplaySuffixMap = {
+        M: "m",
+        m: "i",
+        M7: "m7",
+        m7: "i7",
+        m7b5: "i7b5"
+      };
+      const chordQualityBySuffix = Object.fromEntries(chordQualities.map((quality) => [quality.suffix, quality]));
+      const chordKeyOptions = keys.major.map(([tonic, scaleNotes]) => ({
+        id: `major:${tonic}`,
+        tonic,
+        scaleNotes,
+        label: `${tonic} major`,
+        accidentalPreference: tonic.includes("b") || tonic === "F" || tonic === "C" ? "flat" : "sharp"
+      }));
+      const NATURAL_UNLOCK_ORDER = [0, 4, 1, 5, 2, 6, 3];
+      const NATURAL_UNLOCK_LABELS = ["I", "V", "ii", "vi", "iii", "vii°", "IV"];
+      const NATURAL_TRIAD_QUALITIES = ["M", "m", "m", "M", "M", "m", "dim"];
+      const NATURAL_SEVENTH_QUALITIES = ["M7", "m7", "m7", "M7", "7", "m7", "m7b5"];
+      const ACCIDENTAL_TRIAD_QUALITIES = ["M", "m"];
+      const ACCIDENTAL_SEVENTH_QUALITIES = ["7", "M7", "m7"];
+      const CHORD_INITIAL_FLASH_MS = 5000;
+      const CHORD_MIN_FLASH_MS = 500;
+      const CHORD_FLASH_STEP_MS = 100;
+      const CHORD_STREAK_FOR_UNLOCK = 10;
+      const CHORD_INCORRECT_REVEAL_MS = 2000;
+      const CHORD_STORAGE_KEY = "musicapp.flashChordProgress.v6";
+      const chordStages = [
+        { id: "natural-triads", label: "Natural triads", rootGroup: "natural", chordKind: "triad", inversions: [0, 1, 2] },
+        { id: "natural-sevenths", label: "Natural sevenths", rootGroup: "natural", chordKind: "seventh", inversions: [0, 1, 2, 3] },
+        { id: "accidental-triads", label: "Accidental triads", rootGroup: "accidental", chordKind: "triad", inversions: [0, 1, 2] },
+        { id: "accidental-sevenths", label: "Accidental sevenths", rootGroup: "accidental", chordKind: "seventh", inversions: [0, 1, 2, 3] }
+      ];
+      const chordClefRanges = {
+        treble: { minMidi: 47, maxMidi: 95 },
+        bass: { minMidi: 28, maxMidi: 74 }
+      };
+
+      const titleElement = document.querySelector("#title");
+      const instructionsElement = document.querySelector("#instructions");
+      const modeElement = document.querySelector("#mode");
+      const progressElement = document.querySelector("#progress");
+      const chordKeyPickerElement = document.querySelector("#chordKeyPicker");
+      const chordKeySelectElement = document.querySelector("#chordKeySelect");
+      const progressIndicatorElement = document.querySelector("#progressIndicator");
+      const progressBarElement = document.querySelector("#progressBar");
+      const progressDetailElement = document.querySelector("#progressDetail");
+      const progressChordsElement = document.querySelector("#progressChords");
+      const degreesElement = document.querySelector(".degrees");
+      const firstDegreeElement = document.querySelector("#firstDegree");
+      const secondDegreeElement = document.querySelector("#secondDegree");
+      const connectorElement = document.querySelector(".arrow");
+      const notationCard = document.querySelector("#notationCard");
+      const answerForm = document.querySelector("#answerForm");
+      const answerLabel = document.querySelector("#answerLabel");
+      const answerInput = document.querySelector("#answer");
+      const feedbackElement = document.querySelector("#feedback");
+      const nextButton = document.querySelector("#nextQuestion");
+      const hintElement = document.querySelector("#hint");
+      const intervalModeButton = document.querySelector("#intervalMode");
+      const noteModeButton = document.querySelector("#noteMode");
+      const signatureModeButton = document.querySelector("#signatureMode");
+      const chordModeButton = document.querySelector("#chordMode");
+      let exerciseType = "interval";
+      let currentInterval;
+      let currentNote;
+      let currentSignature;
+      let currentChord;
+      let lastQuestionId;
+      let advanceTimer;
+      let chordHideTimer;
+      let nextChordClef = "treble";
+      let answerLocked = false;
+      let selectedChordKeyId = chordKeyOptions[0].id;
+      const chordProgressState = {
+        selectedKeyId: selectedChordKeyId,
+        byKey: Object.create(null)
+      };
+
+      function randomIndex(max) {
+        return Math.floor(Math.random() * max);
+      }
+
+      function resetAnswerUi() {
+        feedbackElement.textContent = "";
+        feedbackElement.className = "feedback";
+        answerInput.value = "";
+        answerLocked = false;
+        answerInput.disabled = false;
+        notationCard.classList.remove("incorrect-reveal");
+        answerInput.focus();
+      }
+
+      function makeQuestion() {
+        clearTimeout(advanceTimer);
+        clearTimeout(chordHideTimer);
+        if (exerciseType === "note") makeNoteQuestion();
+        else if (exerciseType === "signature") makeSignatureQuestion();
+        else if (exerciseType === "chord") makeChordQuestion();
+        else makeIntervalQuestion();
+        resetAnswerUi();
+      }
+
+      function selectedChordKey() {
+        return chordKeyOptions.find((option) => option.id === selectedChordKeyId) || chordKeyOptions[0];
+      }
+
+      function chordKeyLabel(option) {
+        return `${displayNote(option.tonic)} major`;
+      }
+
+      function chordCurriculumForKey(keyId = selectedChordKeyId) {
+        if (!chordProgressState.byKey[keyId]) {
+          chordProgressState.byKey[keyId] = {
+            stageIndex: 0,
+            unlockedNaturalCount: 2,
+            flashDurationMs: CHORD_INITIAL_FLASH_MS,
+            correctStreak: 0
+          };
+        }
+        return chordProgressState.byKey[keyId];
+      }
+
+      function currentChordCurriculum() {
+        return chordCurriculumForKey(selectedChordKeyId);
+      }
+
+      function resolvedChordDisplayMode() {
+        if (Math.random() < 0.5) return "piano";
+        return Math.random() < 0.5 ? "stacked" : "arpeggio";
+      }
+
+      function chordDisplayModeLabel(displayMode, clef) {
+        if (displayMode === "piano") return "piano view";
+        if (displayMode === "arpeggio") return `${clef} clef arpeggio`;
+        return `${clef} clef staff`;
+      }
+
+      function nextChordKeyId(keyId = selectedChordKeyId) {
+        const currentIndex = chordKeyOptions.findIndex((option) => option.id === keyId);
+        if (currentIndex < 0) return chordKeyOptions[0].id;
+        return chordKeyOptions[(currentIndex + 1) % chordKeyOptions.length].id;
+      }
+
+      function makeIntervalQuestion() {
+        const scaleType = Math.random() < .5 ? "major" : "minor";
+        const scale = scales[scaleType];
+        const first = randomIndex(7);
+        let second = randomIndex(6);
+        if (second >= first) second += 1;
+        let questionId = `interval:${scaleType}:${first}:${second}`;
+        if (questionId === lastQuestionId) {
+          second = (second + 1) % 7;
+          if (second === first) second = (second + 1) % 7;
+          questionId = `interval:${scaleType}:${first}:${second}`;
+        }
+        lastQuestionId = questionId;
+
+        const diatonicNumber = ((second - first + 7) % 7) + 1;
+        let semitoneDistance = scale.semitones[second] - scale.semitones[first];
+        if (semitoneDistance <= 0) semitoneDistance += 12;
+
+        currentInterval = intervalNames[`${diatonicNumber},${semitoneDistance}`];
+        modeElement.textContent = scale.label;
+        firstDegreeElement.textContent = scale.degrees[first];
+        secondDegreeElement.textContent = scale.degrees[second];
+        connectorElement.hidden = false;
+        connectorElement.innerHTML = "&rarr;";
+      }
+
+      function makeNoteQuestion() {
+        const scaleType = Math.random() < .5 ? "major" : "minor";
+        const keyIndex = randomIndex(keys[scaleType].length);
+        const key = keys[scaleType][keyIndex];
+        let degree = randomIndex(6) + 1;
+        let questionId = `note:${scaleType}:${keyIndex}:${degree}`;
+        if (questionId === lastQuestionId) {
+          degree = degree % 6 + 1;
+          questionId = `note:${scaleType}:${keyIndex}:${degree}`;
+        }
+        lastQuestionId = questionId;
+
+        currentNote = key[1][degree];
+        modeElement.textContent = "Name the note";
+        firstDegreeElement.textContent = scales[scaleType].degrees[degree];
+        connectorElement.hidden = false;
+        connectorElement.textContent = "of";
+        secondDegreeElement.textContent = `${displayNote(key[0])} ${scaleType}`;
+      }
+
+      function makeSignatureQuestion() {
+        let questionIndex = randomIndex(keySignatures.length);
+        if (`signature:${questionIndex}` === lastQuestionId) {
+          questionIndex = (questionIndex + 1 + randomIndex(keySignatures.length - 1)) % keySignatures.length;
+        }
+        lastQuestionId = `signature:${questionIndex}`;
+        const question = keySignatures[questionIndex];
+        currentSignature = question[1];
+        modeElement.textContent = "Key signature";
+        firstDegreeElement.textContent = displayNote(question[0]);
+        connectorElement.hidden = true;
+        secondDegreeElement.textContent = "";
+      }
+
+      function accidentalOffset(accidentalText) {
+        return [...accidentalText].reduce((sum, accidental) => (
+          sum + (accidental === "#" ? 1 : accidental === "b" ? -1 : 0)
+        ), 0);
+      }
+
+      function parseChordRoot(noteName) {
+        const match = /^([A-G])(#{1,2}|b{1,2})?$/.exec(noteName);
+        if (!match) return null;
+        return { letter: match[1], accidental: match[2] || "" };
+      }
+
+      function pitchClassForNoteName(noteName) {
+        const parsed = parseChordRoot(noteName);
+        if (!parsed) return 0;
+        return (CHORD_NATURAL_SEMITONES[parsed.letter] + accidentalOffset(parsed.accidental) + 120) % 12;
+      }
+
+      function accidentalTextForOffset(offset) {
+        if (offset === -2) return "bb";
+        if (offset === -1) return "b";
+        if (offset === 1) return "#";
+        if (offset === 2) return "##";
+        return "";
+      }
+
+      function chordToneNames(rootName, intervals) {
+        const parsedRoot = parseChordRoot(rootName);
+        const rootIndex = CHORD_LETTERS.indexOf(parsedRoot.letter);
+        const rootPitchClass = pitchClassForNoteName(rootName);
+
+        return intervals.map((interval, index) => {
+          const letter = CHORD_LETTERS[(rootIndex + (index * 2)) % CHORD_LETTERS.length];
+          const desiredPitchClass = (rootPitchClass + interval) % 12;
+          const naturalPitchClass = CHORD_NATURAL_SEMITONES[letter];
+          let accidentalOffsetValue = desiredPitchClass - naturalPitchClass;
+          while (accidentalOffsetValue > 6) accidentalOffsetValue -= 12;
+          while (accidentalOffsetValue < -6) accidentalOffsetValue += 12;
+          return `${letter}${accidentalTextForOffset(accidentalOffsetValue)}`;
+        });
+      }
+
+      function midiForNoteName(noteName, octave) {
+        return ((octave + 1) * 12) + pitchClassForNoteName(noteName);
+      }
+
+      function vexKeyForMidi(noteName, midi) {
+        const octave = Math.floor(midi / 12) - 1;
+        return `${noteName.toLowerCase()}/${octave}`;
+      }
+
+      function chordQuestionFromDefinition(root, quality, inversion, clef) {
+        const toneNames = chordToneNames(root, quality.intervals);
+        const voicedTones = quality.intervals.map((interval, index) => ({
+          name: toneNames[index],
+          midi: midiForNoteName(root, 3) + interval + (index < inversion ? 12 : 0)
+        })).sort((left, right) => left.midi - right.midi);
+
+        const range = chordClefRanges[clef];
+        const minMidi = Math.min(...voicedTones.map((tone) => tone.midi));
+        const maxMidi = Math.max(...voicedTones.map((tone) => tone.midi));
+        const minShift = Math.ceil((range.minMidi - minMidi) / 12);
+        const maxShift = Math.floor((range.maxMidi - maxMidi) / 12);
+        const shift = maxShift >= minShift ? minShift + randomIndex((maxShift - minShift) + 1) : 0;
+        const notes = voicedTones.map((tone) => vexKeyForMidi(tone.name, tone.midi + (shift * 12)));
+        const bass = toneNames[inversion];
+        const label = chordAnswerLabel(root, quality, inversion);
+
+        return {
+          id: `${clef}:${root}:${quality.suffix}:${inversion}:${shift}`,
+          label,
+          answer: label,
+          itemKey: `${root}${quality.suffix}`,
+          clef,
+          notes
+        };
+      }
+
+      function chordFlashDuration(curriculum = currentChordCurriculum()) {
+        if (!Number.isFinite(curriculum.flashDurationMs)) {
+          curriculum.flashDurationMs = CHORD_INITIAL_FLASH_MS;
+        }
+        return curriculum.flashDurationMs;
+      }
+
+      function setChordFlashDuration(nextDurationMs, curriculum = currentChordCurriculum()) {
+        curriculum.flashDurationMs = Math.min(
+          CHORD_INITIAL_FLASH_MS,
+          Math.max(CHORD_MIN_FLASH_MS, nextDurationMs)
+        );
+      }
+
+      function legacyFlashDurationFromStats(stats) {
+        if (!stats || typeof stats !== "object") return null;
+        const durations = Object.values(stats)
+          .map((itemValue) => Number(itemValue?.flashDurationMs))
+          .filter((flashDurationMs) => Number.isFinite(flashDurationMs))
+          .map((flashDurationMs) => Math.min(CHORD_INITIAL_FLASH_MS, Math.max(CHORD_MIN_FLASH_MS, flashDurationMs)));
+        if (!durations.length) return null;
+        return Math.max(...durations);
+      }
+
+      function chordStatFor(key) {
+        const curriculum = currentChordCurriculum();
+        const flashDurationMs = chordFlashDuration(curriculum);
+        return { flashDurationMs };
+      }
+
+      function saveChordProgress() {
+        try {
+          chordProgressState.selectedKeyId = selectedChordKeyId;
+          localStorage.setItem(CHORD_STORAGE_KEY, JSON.stringify(chordProgressState));
+        } catch (error) {
+          console.warn("Unable to save chord progress.", error);
+        }
+      }
+
+      function loadChordProgress() {
+        try {
+          const saved = localStorage.getItem(CHORD_STORAGE_KEY);
+          if (!saved) return;
+          const parsed = JSON.parse(saved);
+          const savedKeyId = parsed?.selectedKeyId;
+          if (chordKeyOptions.some((option) => option.id === savedKeyId)) {
+            selectedChordKeyId = savedKeyId;
+            chordProgressState.selectedKeyId = savedKeyId;
+          }
+          if (parsed?.curriculum && typeof parsed.curriculum === "object") {
+            const curriculum = chordCurriculumForKey(selectedChordKeyId);
+            const stageIndex = Number(parsed.curriculum.stageIndex);
+            const unlockedNaturalCount = Number(parsed.curriculum.unlockedNaturalCount);
+            const flashDurationMs = Number(parsed.curriculum.flashDurationMs);
+            const correctStreak = Number(parsed.curriculum.correctStreak);
+            if (Number.isInteger(stageIndex) && stageIndex >= 0 && stageIndex < chordStages.length) {
+              curriculum.stageIndex = stageIndex;
+            }
+            if (Number.isInteger(unlockedNaturalCount)) {
+              curriculum.unlockedNaturalCount = Math.min(
+                NATURAL_UNLOCK_ORDER.length,
+                Math.max(2, unlockedNaturalCount)
+              );
+            }
+            setChordFlashDuration(
+              Number.isFinite(flashDurationMs) ? flashDurationMs : CHORD_INITIAL_FLASH_MS,
+              curriculum
+            );
+            curriculum.correctStreak = Number.isInteger(correctStreak) ? Math.max(0, correctStreak) : 0;
+            return;
+          }
+          if (parsed?.byKey && typeof parsed.byKey === "object") {
+            Object.entries(parsed.byKey).forEach(([keyId, value]) => {
+              if (!value || typeof value !== "object") return;
+              if (!chordKeyOptions.some((option) => option.id === keyId)) return;
+              const curriculum = chordCurriculumForKey(keyId);
+              const stageIndex = Number(value.stageIndex);
+              const unlockedNaturalCount = Number(value.unlockedNaturalCount);
+              const stats = value.stats;
+              const flashDurationMs = Number(value.flashDurationMs);
+              const correctStreak = Number(value.correctStreak);
+              if (Number.isInteger(stageIndex) && stageIndex >= 0 && stageIndex < chordStages.length) {
+                curriculum.stageIndex = stageIndex;
+              }
+              if (Number.isInteger(unlockedNaturalCount)) {
+                curriculum.unlockedNaturalCount = Math.min(
+                  NATURAL_UNLOCK_ORDER.length,
+                  Math.max(2, unlockedNaturalCount)
+                );
+              }
+              const migratedFlashDurationMs = Number.isFinite(flashDurationMs)
+                ? flashDurationMs
+                : legacyFlashDurationFromStats(stats);
+              setChordFlashDuration(
+                Number.isFinite(migratedFlashDurationMs) ? migratedFlashDurationMs : CHORD_INITIAL_FLASH_MS,
+                curriculum
+              );
+              curriculum.correctStreak = Number.isInteger(correctStreak) ? Math.max(0, correctStreak) : 0;
+            });
+          }
+        } catch (error) {
+          console.warn("Unable to load chord progress.", error);
+        }
+      }
+
+      function chordAnswerLabel(root, quality, inversion) {
+        const toneNames = chordToneNames(root, quality.intervals);
+        const suffix = chordDisplaySuffixMap[quality.suffix] || quality.suffix;
+        return inversion ? `${root}${suffix}/${toneNames[inversion]}` : `${root}${suffix}`;
+      }
+
+      function chordStatKey(root, quality) {
+        return `${root}${quality.suffix}`;
+      }
+
+      function chordBaseLabel(root, quality) {
+        return chordAnswerLabel(root, quality, 0);
+      }
+
+      function makeChordItem(root, qualitySuffix, inversion) {
+        const quality = chordQualityBySuffix[qualitySuffix];
+        return {
+          root,
+          quality,
+          inversion,
+          key: chordAnswerLabel(root, quality, inversion),
+          statKey: chordStatKey(root, quality),
+          displayKey: chordBaseLabel(root, quality)
+        };
+      }
+
+      function uniqueChordItemsByStatKey(items) {
+        const seen = new Set();
+        return items.filter((item) => {
+          if (seen.has(item.statKey)) return false;
+          seen.add(item.statKey);
+          return true;
+        });
+      }
+
+      function chromaticRootsForChordKey(chordKey) {
+        const chromaticRoots = chordKey.accidentalPreference === "flat" ? CHROMATIC_ROOTS_FLAT : CHROMATIC_ROOTS_SHARP;
+        return chromaticRoots.filter((root) => !chordKey.scaleNotes.includes(root));
+      }
+
+      function unlockedNaturalRoots(curriculum, chordKey) {
+        return NATURAL_UNLOCK_ORDER
+          .slice(0, curriculum.unlockedNaturalCount)
+          .map((index) => ({ root: chordKey.scaleNotes[index], degreeIndex: index }));
+      }
+
+      function allNaturalRoots(chordKey) {
+        return NATURAL_UNLOCK_ORDER.map((index) => ({ root: chordKey.scaleNotes[index], degreeIndex: index }));
+      }
+
+      function stageChordItems(stage, chordKey) {
+        const curriculum = currentChordCurriculum();
+        const roots = stage.rootGroup === "natural"
+          ? (curriculum.stageIndex === 0 ? unlockedNaturalRoots(curriculum, chordKey) : allNaturalRoots(chordKey))
+          : chromaticRootsForChordKey(chordKey);
+        const qualitySet = stage.rootGroup === "natural"
+          ? (stage.chordKind === "triad" ? NATURAL_TRIAD_QUALITIES : NATURAL_SEVENTH_QUALITIES)
+          : (stage.chordKind === "triad" ? ACCIDENTAL_TRIAD_QUALITIES : ACCIDENTAL_SEVENTH_QUALITIES);
+
+        if (stage.rootGroup === "natural") {
+          return roots.flatMap(({ root, degreeIndex }) => (
+            stage.inversions.map((inversion) => makeChordItem(root, qualitySet[degreeIndex], inversion))
+          ));
+        }
+
+        return roots.flatMap((root) => (
+          qualitySet.flatMap((qualitySuffix) => (
+            stage.inversions.map((inversion) => makeChordItem(root, qualitySuffix, inversion))
+          ))
+        ));
+      }
+
+      function currentStageChordItems() {
+        const curriculum = currentChordCurriculum();
+        return stageChordItems(chordStages[curriculum.stageIndex], selectedChordKey());
+      }
+
+      function activeChordItems() {
+        const curriculum = currentChordCurriculum();
+        const chordKey = selectedChordKey();
+        return chordStages.slice(0, curriculum.stageIndex + 1)
+          .flatMap((stage) => stageChordItems(stage, chordKey));
+      }
+
+      function recordChordAttempt(correct) {
+        const curriculum = currentChordCurriculum();
+        const delta = correct ? -CHORD_FLASH_STEP_MS : CHORD_FLASH_STEP_MS;
+        setChordFlashDuration(chordFlashDuration() + delta);
+        curriculum.correctStreak = Math.max(0, curriculum.correctStreak + (correct ? 1 : -2));
+        saveChordProgress();
+      }
+
+      function maybeAdvanceChordCurriculum() {
+        const curriculum = currentChordCurriculum();
+        if (!curriculum.correctStreak || (curriculum.correctStreak % CHORD_STREAK_FOR_UNLOCK) !== 0) return "";
+
+        let unlockMessage = "";
+
+        if (curriculum.stageIndex === 0 && curriculum.unlockedNaturalCount < NATURAL_UNLOCK_ORDER.length) {
+          const unlockPosition = curriculum.unlockedNaturalCount;
+          const degreeIndex = NATURAL_UNLOCK_ORDER[unlockPosition];
+          const root = selectedChordKey().scaleNotes[degreeIndex];
+          curriculum.unlockedNaturalCount += 1;
+          unlockMessage = `Unlocked ${NATURAL_UNLOCK_LABELS[unlockPosition]} (${chordBaseLabel(root, chordQualityBySuffix[NATURAL_TRIAD_QUALITIES[degreeIndex]])}).`;
+        } else if (curriculum.stageIndex < chordStages.length - 1) {
+          curriculum.stageIndex += 1;
+          unlockMessage = `Unlocked ${chordStages[curriculum.stageIndex].label.toLowerCase()}.`;
+        } else {
+          unlockMessage = "All chord levels unlocked.";
+        }
+
+        const nextKey = chordKeyOptions.find((option) => option.id === nextChordKeyId()) || chordKeyOptions[0];
+        selectedChordKeyId = nextKey.id;
+        chordProgressState.selectedKeyId = nextKey.id;
+        chordKeySelectElement.value = nextKey.id;
+        lastQuestionId = "";
+        saveChordProgress();
+        return `${unlockMessage} Moved to ${chordKeyLabel(nextKey)}.`;
+      }
+
+      function updateChordProgress() {
+        if (exerciseType !== "chord") {
+          progressElement.textContent = "";
+          progressDetailElement.textContent = "";
+          progressIndicatorElement.classList.remove("visible");
+          progressIndicatorElement.setAttribute("aria-hidden", "true");
+          progressChordsElement.innerHTML = "";
+          return;
+        }
+        const curriculum = currentChordCurriculum();
+        const chordKey = selectedChordKey();
+        const activeItems = uniqueChordItemsByStatKey(activeChordItems());
+        const currentFlashDurationMs = chordFlashDuration(curriculum);
+        const streakProgress = curriculum.correctStreak % CHORD_STREAK_FOR_UNLOCK;
+        const percent = (streakProgress / CHORD_STREAK_FOR_UNLOCK) * 100;
+        const naturalRootsText = unlockedNaturalRoots(curriculum, chordKey).map(({ root }) => root).join(", ");
+        progressElement.textContent = `${chordKeyLabel(chordKey)}: ${chordStages[curriculum.stageIndex].label} streak ${streakProgress}/${CHORD_STREAK_FOR_UNLOCK}, timer ${(currentFlashDurationMs / 1000).toFixed(1)}s.`;
+        progressIndicatorElement.classList.add("visible");
+        progressIndicatorElement.setAttribute("aria-hidden", "false");
+        progressBarElement.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+        progressDetailElement.textContent = `${curriculum.stageIndex === 0 ? `Natural roots active: ${naturalRootsText}. ` : ""}Every correct answer reduces the shared timer by 0.1s and adds 1 to the streak. Every incorrect answer increases it by 0.1s and subtracts 2 from the streak. Every ${CHORD_STREAK_FOR_UNLOCK} streak points unlocks the next chord step and moves to the next key. Active set: ${activeItems.length} chords.`;
+        progressChordsElement.innerHTML = activeItems.map((item) => {
+          return `<div class="progress-chord"><span class="progress-chord-name">${item.displayKey}</span><span class="progress-chord-time">${(currentFlashDurationMs / 1000).toFixed(1)}s</span></div>`;
+        }).join("");
+      }
+
+      function chooseChordItem() {
+        const currentStageKeys = new Set(currentStageChordItems().map((item) => item.statKey));
+        const activeItems = activeChordItems();
+        const weighted = activeItems.map((item) => {
+          const inCurrentStage = currentStageKeys.has(item.statKey);
+          const baseWeight = inCurrentStage ? 4 : 1;
+          const repeatPenalty = item.statKey === currentChord?.itemKey ? 0.45 : 1;
+          return {
+            item,
+            weight: baseWeight * repeatPenalty
+          };
+        });
+
+        const totalWeight = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+        let threshold = Math.random() * totalWeight;
+
+        for (const entry of weighted) {
+          threshold -= entry.weight;
+          if (threshold <= 0) return entry.item;
+        }
+
+        return weighted[weighted.length - 1].item;
+      }
+
+      function showChordQuestion(chord) {
+        notationCard.hidden = false;
+        notationCard.classList.remove("hidden");
+        notationCard.classList.remove("incorrect-reveal");
+        notationCard.textContent = "";
+        const rendered = window.MusicAppNotation?.drawExerciseChord(notationCard, chord.notes, {
+          clef: chord.clef,
+          keySignature: selectedChordKey().tonic,
+          displayMode: chord.displayMode
+        });
+        if (!rendered) {
+          notationCard.classList.add("hidden");
+          notationCard.textContent = "VexFlow failed to load";
+          return;
+        }
+      }
+
+      function revealIncorrectChord(chord) {
+        clearTimeout(chordHideTimer);
+        notationCard.hidden = false;
+        notationCard.classList.remove("hidden");
+        notationCard.classList.add("incorrect-reveal");
+        notationCard.textContent = "";
+        const rendered = window.MusicAppNotation?.drawExerciseChord(notationCard, chord.notes, {
+          clef: chord.clef,
+          keySignature: selectedChordKey().tonic,
+          displayMode: chord.displayMode
+        });
+        if (!rendered) {
+          notationCard.classList.remove("incorrect-reveal");
+          notationCard.classList.add("hidden");
+          notationCard.textContent = "VexFlow failed to load";
+          return;
+        }
+        scheduleNextQuestion(CHORD_INCORRECT_REVEAL_MS);
+      }
+
+      function makeChordQuestion() {
+        const clef = nextChordClef;
+        nextChordClef = nextChordClef === "treble" ? "bass" : "treble";
+
+        let item = chooseChordItem();
+        let question = chordQuestionFromDefinition(item.root, item.quality, item.inversion, clef);
+        if (question.id === lastQuestionId) {
+          item = chooseChordItem();
+          question = chordQuestionFromDefinition(item.root, item.quality, item.inversion, clef);
+        }
+
+        question.displayMode = resolvedChordDisplayMode();
+        question.id = `${question.id}:${question.displayMode}`;
+        lastQuestionId = question.id;
+        currentChord = question;
+        modeElement.textContent = `${chordKeyLabel(selectedChordKey())} flash chord - ${chordDisplayModeLabel(question.displayMode, clef)}`;
+        firstDegreeElement.textContent = "";
+        secondDegreeElement.textContent = "";
+        connectorElement.hidden = true;
+        updateChordProgress();
+        showChordQuestion(currentChord);
+      }
+
+      function normalise(value) {
+        return value.trim().replace(/[.\-_]/g, " ").replace(/\s+/g, " ");
+      }
+
+      function normaliseNote(value) {
+        const note = value.trim()
+          .replace(/sharp/gi, "#")
+          .replace(/flat/gi, "b")
+          .replace(/\u266f/g, "#")
+          .replace(/\u266d/g, "b")
+          .replace(/\s+/g, "");
+        return note.charAt(0).toUpperCase() + note.slice(1).toLowerCase();
+      }
+
+      function displayNote(note) {
+        return note.replace("#", "\u266f").replace("b", "\u266d");
+      }
+
+      function normaliseSignature(value) {
+        return value.trim().toLowerCase()
+          .replace(/sharps?|\u266f|#/g, "s")
+          .replace(/flats?|\u266d/g, "b")
+          .replace(/\s+/g, "");
+      }
+
+      function normaliseChord(value) {
+        const compact = value.trim()
+          .replace(/\u266f/g, "#")
+          .replace(/\u266d/g, "b")
+          .replace(/\s+/g, "");
+        const normaliseChordPart = (part) => part.replace(
+          /^([a-g])(#{1,2}|b{1,2}|s{1,2})?(.*)$/i,
+          (_, root, accidental = "", quality = "") => {
+            const normalisedAccidental = accidental.replace(/s/g, "#");
+            const normalisedQuality = quality
+              .replace(/^i7b5$/i, "m7b5")
+              .replace(/^i7$/i, "m7")
+              .replace(/^i$/i, "m")
+              .replace(/^m7$/i, "M7")
+              .replace(/^m$/i, "M")
+              .replace(/^d$/i, "dim");
+            return `${root.toUpperCase()}${normalisedAccidental}${normalisedQuality}`;
+          }
+        );
+        const slashIndex = compact.indexOf("/");
+        const normalised = slashIndex < 0
+          ? normaliseChordPart(compact)
+          : `${normaliseChordPart(compact.slice(0, slashIndex))}/${compact.slice(slashIndex + 1)}`;
+        if (slashIndex < 0) return normalised;
+        const chordPart = normalised.slice(0, slashIndex);
+        const bassPart = normalised.slice(slashIndex + 1);
+        const bassMatch = /^([a-g])(#{1,2}|b{1,2}|s{1,2})?$/i.exec(bassPart);
+        if (!bassMatch) return normalised;
+        return `${chordPart}/${bassMatch[1].toUpperCase()}${(bassMatch[2] || "").replace(/s/g, "#")}`;
+      }
+
+      function parseChordAnswerParts(value) {
+        const normalised = normaliseChord(value);
+        const match = /^([A-G](?:#{1,2}|b{1,2})?)([^/]*)?(?:\/([A-G](?:#{1,2}|b{1,2})?))?$/.exec(normalised);
+        if (!match) return null;
+        return {
+          root: match[1] || "",
+          quality: match[2] || "",
+          bass: match[3] || ""
+        };
+      }
+
+      function chordImmediateFailure(answer) {
+        if (exerciseType !== "chord") return false;
+        const guess = parseChordAnswerParts(answer);
+        const expected = parseChordAnswerParts(currentChord.answer);
+        if (!guess || !expected) return false;
+        if (guess.root && !expected.root.startsWith(guess.root)) return true;
+        if (guess.quality && !expected.quality.startsWith(guess.quality)) return true;
+        if (guess.bass && !expected.bass.startsWith(guess.bass)) return true;
+        return false;
+      }
+
+      function isCorrect(answer) {
+        if (exerciseType === "note") return normaliseNote(answer) === currentNote;
+        if (exerciseType === "signature") return normaliseSignature(answer) === currentSignature;
+        if (exerciseType === "chord") return normaliseChord(answer) === normaliseChord(currentChord.answer);
+        const trimmed = answer.trim();
+        return currentInterval.some((accepted) => {
+          if (/^[PMAmd]\d$/.test(accepted)) return trimmed === accepted;
+          return normalise(trimmed).toLowerCase() === normalise(accepted).toLowerCase();
+        });
+      }
+
+      function scheduleNextQuestion(delay = 100) {
+        clearTimeout(advanceTimer);
+        advanceTimer = setTimeout(makeQuestion, delay);
+      }
+
+      function populateChordKeyOptions() {
+        chordKeySelectElement.innerHTML = chordKeyOptions.map((option) => (
+          `<option value="${option.id}">${chordKeyLabel(option)}</option>`
+        )).join("");
+        chordKeySelectElement.value = selectedChordKeyId;
+      }
+
+      function setSelectedChordKey(keyId) {
+        if (!chordKeyOptions.some((option) => option.id === keyId)) return;
+        selectedChordKeyId = keyId;
+        chordProgressState.selectedKeyId = keyId;
+        chordKeySelectElement.value = keyId;
+        chordCurriculumForKey(keyId);
+        saveChordProgress();
+        lastQuestionId = "";
+        if (exerciseType === "chord") makeQuestion();
+      }
+
+      function setExerciseType(type) {
+        exerciseType = type;
+        const isInterval = type === "interval";
+        const isNote = type === "note";
+        const isSignature = type === "signature";
+        const isChord = type === "chord";
+
+        intervalModeButton.classList.toggle("active", isInterval);
+        noteModeButton.classList.toggle("active", isNote);
+        signatureModeButton.classList.toggle("active", isSignature);
+        chordModeButton.classList.toggle("active", isChord);
+        intervalModeButton.setAttribute("aria-pressed", isInterval);
+        noteModeButton.setAttribute("aria-pressed", isNote);
+        signatureModeButton.setAttribute("aria-pressed", isSignature);
+        chordModeButton.setAttribute("aria-pressed", isChord);
+        degreesElement.classList.toggle("note-question", !isInterval && !isChord);
+        degreesElement.hidden = isChord;
+        notationCard.hidden = !isChord;
+        notationCard.classList.remove("hidden");
+        notationCard.textContent = "";
+        chordKeyPickerElement.classList.toggle("visible", isChord);
+        progressIndicatorElement.classList.toggle("visible", isChord);
+        progressIndicatorElement.setAttribute("aria-hidden", isChord ? "false" : "true");
+
+        if (isInterval) {
+          titleElement.textContent = "Scale degree intervals";
+          instructionsElement.textContent = "Name the ascending interval from the first scale degree to the second.";
+          answerLabel.textContent = "Interval";
+          answerInput.placeholder = "e.g. major third or M3";
+          hintElement.textContent = 'Natural minor is used. Answers may be entered as names or shorthand, such as "perfect fifth" or "P5".';
+        } else if (isNote) {
+          titleElement.textContent = "Scale degree notes";
+          instructionsElement.textContent = "Name the note represented by the scale degree and key.";
+          answerLabel.textContent = "Note";
+          answerInput.placeholder = "e.g. G or F#";
+          hintElement.textContent = 'Natural minor is used. Accidentals may be entered as symbols or as "#" and "b".';
+        } else if (isSignature) {
+          titleElement.textContent = "Key signatures";
+          instructionsElement.textContent = "Enter how many sharps or flats the key signature contains.";
+          answerLabel.textContent = "Accidentals";
+          answerInput.placeholder = "e.g. 4s or 1b";
+          hintElement.textContent = 'Use "s" for sharps and "b" for flats. C major and A minor are excluded.';
+        } else {
+          titleElement.textContent = "Chord flash cards";
+          instructionsElement.textContent = "Pick a major key. Natural triads start with I and V, then add ii, vi, iii, vii degrees, and IV, with inversions included from the start. After that come natural sevenths, then accidental triads, then accidental sevenths, each with inversions included. Each correct answer reduces the shared flash timer by 0.1 seconds and adds 1 to your streak; each incorrect answer increases it by 0.1 seconds and subtracts 2 from the streak. Every 10 streak points unlock the next chord step and move to the next key.";
+          answerLabel.textContent = "Chord";
+          answerInput.placeholder = "e.g. Di, Gm/B, Cm7, Bi7b5/F";
+          hintElement.textContent = 'Use "m" for major and "i" for minor. Chords appear randomly as staff notation, arpeggiated staff notation, or a piano keyboard view. Include slash bass notes for inversions. Wrong answers reveal the chord with a red border for 2 seconds before the next card.';
+        }
+
+        updateChordProgress();
+        makeQuestion();
+      }
+
+      function submitCurrentAnswer() {
+        if (answerLocked) return;
+        const correct = isCorrect(answerInput.value);
+        if (exerciseType === "chord") {
+          recordChordAttempt(correct);
+        }
+        const answerText = exerciseType === "interval"
+          ? `${currentInterval[0]} (${currentInterval[1]})`
+          : exerciseType === "note" ? displayNote(currentNote)
+          : exerciseType === "signature" ? currentSignature
+          : currentChord.label;
+        const unlockMessage = correct && exerciseType === "chord" ? maybeAdvanceChordCurriculum() : "";
+        feedbackElement.className = `feedback ${correct ? "correct" : "incorrect"}`;
+        feedbackElement.textContent = correct
+          ? `Correct - ${answerText}.${unlockMessage ? ` ${unlockMessage}` : ""}`
+          : `Not quite. The answer is ${answerText}.`;
+        updateChordProgress();
+        if (correct) {
+          scheduleNextQuestion();
+          return;
+        }
+        if (exerciseType === "chord") {
+          answerLocked = true;
+          answerInput.disabled = true;
+          revealIncorrectChord(currentChord);
+        }
+      }
+
+      answerForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitCurrentAnswer();
+      });
+
+      answerInput.addEventListener("input", () => {
+        if (answerLocked) return;
+        clearTimeout(advanceTimer);
+        if (exerciseType === "chord" && chordImmediateFailure(answerInput.value)) {
+          submitCurrentAnswer();
+          return;
+        }
+        if (isCorrect(answerInput.value)) submitCurrentAnswer();
+      });
+
+      intervalModeButton.addEventListener("click", () => setExerciseType("interval"));
+      noteModeButton.addEventListener("click", () => setExerciseType("note"));
+      signatureModeButton.addEventListener("click", () => setExerciseType("signature"));
+      chordModeButton.addEventListener("click", () => setExerciseType("chord"));
+      chordKeySelectElement.addEventListener("change", (event) => {
+        setSelectedChordKey(event.target.value);
+      });
+      nextButton.addEventListener("click", makeQuestion);
+
+      function initializeExercises() {
+        loadChordProgress();
+        populateChordKeyOptions();
+        const ready = window.MusicAppNotation?.initializeVexFlow
+          ? window.MusicAppNotation.initializeVexFlow()
+          : Promise.resolve();
+        ready.then(() => makeQuestion());
+      }
+
+      initializeExercises();
+    </script>
+  </body>
+</html>
