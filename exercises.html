@@ -35,7 +35,7 @@
 
       .exercise-toggle {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         gap: .25rem;
         margin-top: 1.5rem;
         padding: .25rem;
@@ -93,6 +93,10 @@
         text-align: center;
       }
 
+      .chord-drill-next {
+        display: none;
+      }
+
       .key-picker {
         display: none;
         margin: 1rem 0 1.25rem;
@@ -113,6 +117,109 @@
         border: 1px solid #cbd5e1;
         font: inherit;
         background: #fff;
+      }
+
+      .chord-drill-settings {
+        display: none;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .75rem;
+        margin: 1rem 0 1.25rem;
+        padding: 1rem;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+      }
+
+      .chord-drill-settings.visible { display: grid; }
+
+      .chord-drill-settings label { margin: 0; }
+
+      .chord-drill-settings input {
+        display: block;
+        width: 100%;
+        margin-top: .35rem;
+      }
+
+      .chord-drill-settings button {
+        grid-column: 1 / -1;
+      }
+
+      .interval-picker {
+        display: none;
+        margin: 1rem 0 1.25rem;
+        padding: 1rem;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+      }
+
+      .interval-picker.visible {
+        display: block;
+      }
+
+      .interval-picker-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .85rem;
+        flex-wrap: wrap;
+      }
+
+      .interval-picker-header p {
+        margin: 0;
+        color: #0f172a;
+        font-weight: 650;
+      }
+
+      .interval-picker-actions {
+        display: flex;
+        gap: .5rem;
+      }
+
+      .interval-picker-actions button {
+        padding: .45rem .7rem;
+        background: #e2e8f0;
+        color: #0f172a;
+        font-size: .9rem;
+      }
+
+      .interval-picker-actions button:hover {
+        background: #cbd5e1;
+      }
+
+      .interval-prompt-style {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        color: #0f172a;
+        font-weight: 500;
+      }
+
+      .interval-prompt-style select {
+        padding: .45rem .7rem;
+        border: 1px solid #cbd5e1;
+        font: inherit;
+        background: #fff;
+      }
+
+      .interval-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+        gap: .5rem .75rem;
+      }
+
+      .interval-option {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin: 0;
+        color: #0f172a;
+        font-weight: 500;
+      }
+
+      .interval-option input {
+        flex: 0 0 auto;
+        width: 1rem;
+        height: 1rem;
       }
 
       .progress-chords {
@@ -160,6 +267,7 @@
       }
 
       .degrees.note-question { font-size: clamp(1.75rem, 8vw, 3.5rem); }
+      .degrees.compact-question { font-size: clamp(1.2rem, 5vw, 2.4rem); }
 
       .notation-card {
         min-height: 15rem;
@@ -236,11 +344,45 @@
         <button id="noteMode" type="button" aria-pressed="false">Name the note</button>
         <button id="signatureMode" type="button" aria-pressed="false">Key signatures</button>
         <button id="chordMode" type="button" aria-pressed="false">Chords</button>
+        <button id="pianoDegreeMode" type="button" aria-pressed="false">Piano degrees</button>
+        <button id="chordDrillMode" type="button" aria-pressed="false">Chord drill</button>
       </div>
 
       <div class="key-picker" id="chordKeyPicker">
         <label for="chordKeySelect">Chord key</label>
         <select id="chordKeySelect" name="chordKey"></select>
+      </div>
+      <div class="key-picker" id="pianoDegreeKeyPicker">
+        <label for="pianoDegreeKeySelect">Piano degree key</label>
+        <select id="pianoDegreeKeySelect" name="pianoDegreeKey"></select>
+      </div>
+      <div class="chord-drill-settings" id="chordDrillSettings">
+        <label for="chordDrillChordSeconds">
+          Chord duration (seconds)
+          <input id="chordDrillChordSeconds" type="number" min="1" max="60" step="1" value="3">
+        </label>
+        <label for="chordDrillKeySeconds">
+          Key duration (seconds)
+          <input id="chordDrillKeySeconds" type="number" min="1" max="3600" step="1" value="30">
+        </label>
+        <button id="chordDrillToggle" type="button">Start drill</button>
+      </div>
+      <div class="interval-picker" id="intervalPicker">
+        <div class="interval-picker-header">
+          <p>Intervals to include</p>
+          <label class="interval-prompt-style" for="intervalPromptStyle">
+            <span>Prompt style</span>
+            <select id="intervalPromptStyle" name="intervalPromptStyle">
+              <option value="exact">Exact quality</option>
+              <option value="basic">Basic number</option>
+            </select>
+          </label>
+          <div class="interval-picker-actions">
+            <button id="selectAllIntervals" type="button">Select all</button>
+            <button id="clearIntervals" type="button">Up to octave</button>
+          </div>
+        </div>
+        <div class="interval-grid" id="intervalOptions"></div>
       </div>
 
       <div class="mode" id="mode"></div>
@@ -250,6 +392,7 @@
           <div class="progress-bar" id="progressBar"></div>
         </div>
         <p class="progress-detail" id="progressDetail"></p>
+        <p class="chord-drill-next" id="chordDrillNext" aria-live="polite"></p>
         <div class="progress-chords" id="progressChords"></div>
       </div>
       <div class="degrees" aria-live="polite">
@@ -290,22 +433,39 @@
         }
       };
 
-      const intervalNames = {
-        "1,0": ["perfect unison", "P1"],
-        "2,1": ["minor second", "m2"],
-        "2,2": ["major second", "M2"],
-        "3,3": ["minor third", "m3"],
-        "3,4": ["major third", "M3"],
-        "4,5": ["perfect fourth", "P4"],
-        "4,6": ["augmented fourth", "A4", "tritone"],
-        "5,6": ["diminished fifth", "d5", "tritone"],
-        "5,7": ["perfect fifth", "P5"],
-        "6,8": ["minor sixth", "m6"],
-        "6,9": ["major sixth", "M6"],
-        "7,10": ["minor seventh", "m7"],
-        "7,11": ["major seventh", "M7"],
-        "8,12": ["perfect octave", "P8"]
-      };
+      const intervalOptions = [
+        { id: "P1", short: "P1", label: "Perfect unison", number: 1, semitones: 0 },
+        { id: "m2", short: "m2", label: "Minor 2nd", number: 2, semitones: 1 },
+        { id: "M2", short: "M2", label: "Major 2nd", number: 2, semitones: 2 },
+        { id: "m3", short: "m3", label: "Minor 3rd", number: 3, semitones: 3 },
+        { id: "M3", short: "M3", label: "Major 3rd", number: 3, semitones: 4 },
+        { id: "P4", short: "P4", label: "Perfect 4th", number: 4, semitones: 5 },
+        { id: "A4", short: "A4", label: "Augmented 4th", number: 4, semitones: 6 },
+        { id: "d5", short: "d5", label: "Diminished 5th", number: 5, semitones: 6 },
+        { id: "P5", short: "P5", label: "Perfect 5th", number: 5, semitones: 7 },
+        { id: "m6", short: "m6", label: "Minor 6th", number: 6, semitones: 8 },
+        { id: "M6", short: "M6", label: "Major 6th", number: 6, semitones: 9 },
+        { id: "m7", short: "m7", label: "Minor 7th", number: 7, semitones: 10 },
+        { id: "M7", short: "M7", label: "Major 7th", number: 7, semitones: 11 },
+        { id: "P8", short: "P8", label: "Perfect octave", number: 8, semitones: 12 },
+        { id: "m9", short: "m9", label: "Minor 9th", number: 9, semitones: 13 },
+        { id: "M9", short: "M9", label: "Major 9th", number: 9, semitones: 14 },
+        { id: "m10", short: "m10", label: "Minor 10th", number: 10, semitones: 15 },
+        { id: "M10", short: "M10", label: "Major 10th", number: 10, semitones: 16 },
+        { id: "P11", short: "P11", label: "Perfect 11th", number: 11, semitones: 17 },
+        { id: "A11", short: "A11", label: "Augmented 11th", number: 11, semitones: 18 },
+        { id: "d12", short: "d12", label: "Diminished 12th", number: 12, semitones: 18 },
+        { id: "P12", short: "P12", label: "Perfect 12th", number: 12, semitones: 19 },
+        { id: "m13", short: "m13", label: "Minor 13th", number: 13, semitones: 20 },
+        { id: "M13", short: "M13", label: "Major 13th", number: 13, semitones: 21 },
+        { id: "m14", short: "m14", label: "Minor 14th", number: 14, semitones: 22 },
+        { id: "M14", short: "M14", label: "Major 14th", number: 14, semitones: 23 },
+        { id: "P15", short: "P15", label: "Perfect double octave", number: 15, semitones: 24 }
+      ];
+      const INTERVAL_STORAGE_KEY = "musicapp.intervalSelection.v1";
+      const INTERVAL_PROMPT_STYLE_STORAGE_KEY = "musicapp.intervalPromptStyle.v1";
+      const INTERVAL_ROOTS = ["C", "D", "E", "F", "G", "A", "B", "C#", "D#", "F#", "G#", "A#", "Db", "Eb", "Gb", "Ab", "Bb"];
+      const NATURAL_INTERVAL_ROOTS = ["C", "D", "E", "F", "G", "A", "B"];
 
       const keys = {
         major: [
@@ -342,6 +502,47 @@
         ["C minor", "3b"], ["F minor", "4b"], ["Bb minor", "5b"],
         ["Eb minor", "6b"], ["Ab minor", "7b"]
       ];
+      const majorPianoDegreeKeys = [
+        ["C", ["C", "D", "E", "F", "G", "A", "B"]],
+        ["G", ["G", "A", "B", "C", "D", "E", "F#"]],
+        ["D", ["D", "E", "F#", "G", "A", "B", "C#"]],
+        ["A", ["A", "B", "C#", "D", "E", "F#", "G#"]],
+        ["E", ["E", "F#", "G#", "A", "B", "C#", "D#"]],
+        ["B", ["B", "C#", "D#", "E", "F#", "G#", "A#"]],
+        ["F#", ["F#", "G#", "A#", "B", "C#", "D#", "E#"]],
+        ["Db", ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"]],
+        ["Ab", ["Ab", "Bb", "C", "Db", "Eb", "F", "G"]],
+        ["Eb", ["Eb", "F", "G", "Ab", "Bb", "C", "D"]],
+        ["Bb", ["Bb", "C", "D", "Eb", "F", "G", "A"]],
+        ["F", ["F", "G", "A", "Bb", "C", "D", "E"]]
+      ];
+      const scaleDegreeAnswerMap = {
+        1: ["1", "i", "do", "tonic"],
+        2: ["2", "ii", "re", "supertonic"],
+        3: ["3", "iii", "mi", "mediant"],
+        4: ["4", "iv", "fa", "subdominant"],
+        5: ["5", "v", "sol", "so", "dominant"],
+        6: ["6", "vi", "la", "submediant"],
+        7: ["7", "vii", "ti", "si", "leading tone", "leading note"]
+      };
+      const pianoDegreePromptOptions = [
+        { id: "piano-to-degree", label: "Piano to scale degree" },
+        { id: "staff-to-degree", label: "Sheet music to scale degree" },
+        { id: "note-to-degree", label: "Note to scale degree" },
+        { id: "degree-to-note", label: "Scale degree to note" }
+      ];
+      const NOTE_LETTER_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+      const PIANO_DEGREE_STAFF_RANGES = {
+        treble: {
+          min: { letter: "F", octave: 3 },
+          max: { letter: "E", octave: 6 }
+        },
+        bass: {
+          min: { letter: "A", octave: 1 },
+          max: { letter: "G", octave: 4 }
+        }
+      };
+      const PIANO_DEGREE_QUESTIONS_PER_KEY = 100;
 
       const CHORD_LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
       const CHORD_NATURAL_SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -384,6 +585,8 @@
       const CHORD_STREAK_FOR_UNLOCK = 10;
       const CHORD_INCORRECT_REVEAL_MS = 2000;
       const CHORD_STORAGE_KEY = "musicapp.flashChordProgress.v6";
+      const CHORD_DRILL_DEFAULT_CHORD_SECONDS = 3;
+      const CHORD_DRILL_DEFAULT_KEY_SECONDS = 30;
       const chordStages = [
         { id: "natural-triads", label: "Natural triads", rootGroup: "natural", chordKind: "triad", inversions: [0, 1, 2] },
         { id: "natural-sevenths", label: "Natural sevenths", rootGroup: "natural", chordKind: "seventh", inversions: [0, 1, 2, 3] },
@@ -401,9 +604,21 @@
       const progressElement = document.querySelector("#progress");
       const chordKeyPickerElement = document.querySelector("#chordKeyPicker");
       const chordKeySelectElement = document.querySelector("#chordKeySelect");
+      const pianoDegreeKeyPickerElement = document.querySelector("#pianoDegreeKeyPicker");
+      const pianoDegreeKeySelectElement = document.querySelector("#pianoDegreeKeySelect");
+      const chordDrillSettingsElement = document.querySelector("#chordDrillSettings");
+      const chordDrillChordSecondsElement = document.querySelector("#chordDrillChordSeconds");
+      const chordDrillKeySecondsElement = document.querySelector("#chordDrillKeySeconds");
+      const chordDrillToggleElement = document.querySelector("#chordDrillToggle");
+      const intervalPickerElement = document.querySelector("#intervalPicker");
+      const intervalOptionsElement = document.querySelector("#intervalOptions");
+      const intervalPromptStyleElement = document.querySelector("#intervalPromptStyle");
+      const selectAllIntervalsButton = document.querySelector("#selectAllIntervals");
+      const clearIntervalsButton = document.querySelector("#clearIntervals");
       const progressIndicatorElement = document.querySelector("#progressIndicator");
       const progressBarElement = document.querySelector("#progressBar");
       const progressDetailElement = document.querySelector("#progressDetail");
+      const chordDrillNextElement = document.querySelector("#chordDrillNext");
       const progressChordsElement = document.querySelector("#progressChords");
       const degreesElement = document.querySelector(".degrees");
       const firstDegreeElement = document.querySelector("#firstDegree");
@@ -420,17 +635,33 @@
       const noteModeButton = document.querySelector("#noteMode");
       const signatureModeButton = document.querySelector("#signatureMode");
       const chordModeButton = document.querySelector("#chordMode");
+      const pianoDegreeModeButton = document.querySelector("#pianoDegreeMode");
+      const chordDrillModeButton = document.querySelector("#chordDrillMode");
       let exerciseType = "interval";
       let currentInterval;
       let currentNote;
       let currentSignature;
       let currentChord;
+      let currentPianoDegree;
       let lastQuestionId;
       let advanceTimer;
       let chordHideTimer;
+      let chordDrillChordTimer;
+      let chordDrillKeyTimer;
+      let chordDrillProgressTimer;
       let nextChordClef = "treble";
       let answerLocked = false;
+      let pianoDegreeKeyIndex = 0;
+      let pianoDegreeQuestionsInKey = 0;
       let selectedChordKeyId = chordKeyOptions[0].id;
+      let chordDrillKeyId = chordKeyOptions[0].id;
+      let currentChordDrillLabel = "";
+      let chordDrillNextLabel = "";
+      let chordDrillStartedAt = 0;
+      let chordDrillCurrentDurationMs = 0;
+      let chordDrillRunning = false;
+      let selectedIntervalIds = new Set(intervalOptions.map((option) => option.id));
+      let intervalPromptStyle = "exact";
       const chordProgressState = {
         selectedKeyId: selectedChordKeyId,
         byKey: Object.create(null)
@@ -453,9 +684,15 @@
       function makeQuestion() {
         clearTimeout(advanceTimer);
         clearTimeout(chordHideTimer);
+        if (exerciseType !== "chord-drill") {
+          clearTimeout(chordDrillChordTimer);
+          clearTimeout(chordDrillKeyTimer);
+        }
         if (exerciseType === "note") makeNoteQuestion();
         else if (exerciseType === "signature") makeSignatureQuestion();
         else if (exerciseType === "chord") makeChordQuestion();
+        else if (exerciseType === "chord-drill") makeChordDrillQuestion();
+        else if (exerciseType === "piano-degree") makePianoDegreeQuestion();
         else makeIntervalQuestion();
         resetAnswerUi();
       }
@@ -495,6 +732,148 @@
         return `${clef} clef staff`;
       }
 
+      function chordDrillKey() {
+        return chordKeyOptions.find((option) => option.id === chordDrillKeyId) || chordKeyOptions[0];
+      }
+
+      function chordDrillItemsForKey(key) {
+        const suffixes = ["M", "m", "m", "M", "M", "m", "dim"];
+        return key.scaleNotes.map((root, index) => ({
+          label: `${displayNote(root)}${suffixes[index]}`,
+          degree: index + 1
+        }));
+      }
+
+      function chordDrillDurationMs(input, fallback, maximum) {
+        const seconds = Number(input.value);
+        const safeSeconds = Number.isFinite(seconds)
+          ? Math.min(maximum, Math.max(1, Math.round(seconds)))
+          : fallback;
+        input.value = `${safeSeconds}`;
+        return safeSeconds * 1000;
+      }
+
+      function chordDrillChordDurationMs() {
+        return chordDrillDurationMs(
+          chordDrillChordSecondsElement,
+          CHORD_DRILL_DEFAULT_CHORD_SECONDS,
+          60
+        );
+      }
+
+      function chordDrillKeyDurationMs() {
+        return chordDrillDurationMs(
+          chordDrillKeySecondsElement,
+          CHORD_DRILL_DEFAULT_KEY_SECONDS,
+          3600
+        );
+      }
+
+      function randomNextChordDrillLabel(items, currentLabel) {
+        const otherItems = items.filter((item) => item.label !== currentLabel);
+        return otherItems[randomIndex(otherItems.length)]?.label || items[0]?.label || "";
+      }
+
+      function updateChordDrillProgress() {
+        if (!chordDrillRunning || exerciseType !== "chord-drill") return;
+        const elapsed = Date.now() - chordDrillStartedAt;
+        const remainingMs = Math.max(0, chordDrillCurrentDurationMs - elapsed);
+        const remainingSeconds = (remainingMs / 1000).toFixed(1);
+        const percentageRemaining = chordDrillCurrentDurationMs
+          ? (remainingMs / chordDrillCurrentDurationMs) * 100
+          : 0;
+        progressBarElement.style.width = `${Math.max(0, Math.min(100, percentageRemaining))}%`;
+        progressDetailElement.textContent = `${remainingSeconds}s left · ${chordDrillKeyDurationMs() / 1000}s per key`;
+        chordDrillNextElement.textContent = `${currentChordDrillLabel} → ${chordDrillNextLabel}`;
+      }
+
+      function scheduleChordDrillChord() {
+        clearTimeout(chordDrillChordTimer);
+        if (!chordDrillRunning || exerciseType !== "chord-drill") return;
+        chordDrillChordTimer = setTimeout(() => {
+          makeChordDrillQuestion(chordDrillNextLabel);
+        }, chordDrillChordDurationMs());
+      }
+
+      function scheduleChordDrillKey() {
+        clearTimeout(chordDrillKeyTimer);
+        if (!chordDrillRunning || exerciseType !== "chord-drill") return;
+        chordDrillKeyTimer = setTimeout(() => {
+          const otherKeys = chordKeyOptions.filter((key) => key.id !== chordDrillKeyId);
+          chordDrillKeyId = otherKeys[randomIndex(otherKeys.length)].id;
+          currentChordDrillLabel = "";
+          makeChordDrillQuestion();
+          scheduleChordDrillKey();
+        }, chordDrillKeyDurationMs());
+      }
+
+      function makeChordDrillQuestion(nextLabel = "") {
+        clearTimeout(chordDrillChordTimer);
+        clearInterval(chordDrillProgressTimer);
+        const key = chordDrillKey();
+        const items = chordDrillItemsForKey(key);
+        const item = nextLabel
+          ? items.find((candidate) => candidate.label === nextLabel) || items[randomIndex(items.length)]
+          : items[randomIndex(items.length)];
+        currentChordDrillLabel = item.label;
+        chordDrillNextLabel = randomNextChordDrillLabel(items, currentChordDrillLabel);
+        chordDrillCurrentDurationMs = chordDrillChordDurationMs();
+        chordDrillStartedAt = Date.now();
+        modeElement.textContent = `${chordKeyLabel(key)}${chordDrillRunning ? "" : " · ready"}`;
+        firstDegreeElement.textContent = item.label;
+        secondDegreeElement.textContent = chordDrillNextLabel;
+        connectorElement.hidden = false;
+        connectorElement.innerHTML = "&rarr;";
+        notationCard.hidden = true;
+        progressElement.textContent = chordDrillRunning
+          ? `${chordKeyLabel(key)} · running`
+          : `${chordKeyLabel(key)} · press Start drill`;
+        updateProgressDisplay();
+        if (chordDrillRunning) {
+          chordDrillProgressTimer = setInterval(updateChordDrillProgress, 100);
+          updateChordDrillProgress();
+        }
+        scheduleChordDrillChord();
+      }
+
+      function startChordDrill() {
+        chordDrillKeyId = chordKeyOptions[randomIndex(chordKeyOptions.length)].id;
+        currentChordDrillLabel = "";
+        chordDrillRunning = true;
+        chordDrillToggleElement.textContent = "Stop drill";
+        makeChordDrillQuestion();
+        scheduleChordDrillKey();
+      }
+
+      function stopChordDrill() {
+        chordDrillRunning = false;
+        clearTimeout(chordDrillChordTimer);
+        clearTimeout(chordDrillKeyTimer);
+        clearInterval(chordDrillProgressTimer);
+        chordDrillToggleElement.textContent = "Start drill";
+        if (exerciseType === "chord-drill") {
+          modeElement.textContent = `${chordKeyLabel(chordDrillKey())} · paused`;
+          progressElement.textContent = `${chordKeyLabel(chordDrillKey())} · paused`;
+          secondDegreeElement.textContent = chordDrillNextLabel;
+          connectorElement.hidden = false;
+          connectorElement.innerHTML = "&rarr;";
+          progressBarElement.style.width = "0%";
+          chordDrillNextElement.textContent = `${currentChordDrillLabel} → ${chordDrillNextLabel}`;
+          updateProgressDisplay();
+        }
+      }
+
+      function restartChordDrillTiming() {
+        if (!chordDrillRunning || exerciseType !== "chord-drill") return;
+        clearTimeout(chordDrillChordTimer);
+        clearTimeout(chordDrillKeyTimer);
+        chordDrillCurrentDurationMs = chordDrillChordDurationMs();
+        chordDrillStartedAt = Date.now();
+        scheduleChordDrillChord();
+        scheduleChordDrillKey();
+        updateChordDrillProgress();
+      }
+
       function nextChordKeyId(keyId = selectedChordKeyId) {
         const currentIndex = chordKeyOptions.findIndex((option) => option.id === keyId);
         if (currentIndex < 0) return chordKeyOptions[0].id;
@@ -502,27 +881,26 @@
       }
 
       function makeIntervalQuestion() {
-        const scaleType = Math.random() < .5 ? "major" : "minor";
-        const scale = scales[scaleType];
-        const first = randomIndex(7);
-        let second = randomIndex(6);
-        if (second >= first) second += 1;
-        let questionId = `interval:${scaleType}:${first}:${second}`;
-        if (questionId === lastQuestionId) {
-          second = (second + 1) % 7;
-          if (second === first) second = (second + 1) % 7;
-          questionId = `interval:${scaleType}:${first}:${second}`;
+        const availableIntervals = intervalOptions.filter((option) => selectedIntervalIds.has(option.id));
+        if (!availableIntervals.length) {
+          selectedIntervalIds = new Set(intervalOptions.map((option) => option.id));
+          syncIntervalPickerUi();
+          saveIntervalSelection();
         }
-        lastQuestionId = questionId;
 
-        const diatonicNumber = ((second - first + 7) % 7) + 1;
-        let semitoneDistance = scale.semitones[second] - scale.semitones[first];
-        if (semitoneDistance <= 0) semitoneDistance += 12;
-
-        currentInterval = intervalNames[`${diatonicNumber},${semitoneDistance}`];
-        modeElement.textContent = scale.label;
-        firstDegreeElement.textContent = scale.degrees[first];
-        secondDegreeElement.textContent = scale.degrees[second];
+        const activeIntervals = intervalOptions.filter((option) => selectedIntervalIds.has(option.id));
+        const direction = Math.random() < 0.5 ? "up" : "down";
+        if (intervalPromptStyle === "basic") {
+          currentInterval = makeBasicIntervalQuestion(activeIntervals, direction);
+        } else {
+          const interval = activeIntervals[randomIndex(activeIntervals.length)];
+          const root = chooseIntervalRoot(interval, direction, lastQuestionId);
+          currentInterval = buildIntervalQuestion(root, interval, direction);
+        }
+        lastQuestionId = currentInterval.id;
+        modeElement.textContent = "Resulting note";
+        firstDegreeElement.textContent = displayNote(currentInterval.root);
+        secondDegreeElement.textContent = `${direction} a ${currentInterval.promptLabel}`;
         connectorElement.hidden = false;
         connectorElement.innerHTML = "&rarr;";
       }
@@ -561,10 +939,234 @@
         secondDegreeElement.textContent = "";
       }
 
+      function pianoDegreeKey() {
+        return majorPianoDegreeKeys[pianoDegreeKeyIndex] || majorPianoDegreeKeys[0];
+      }
+
+      function pianoDegreeKeyLabel([tonic]) {
+        return `${displayNote(tonic)} major`;
+      }
+
+      function randomPianoDegreePrompt() {
+        return pianoDegreePromptOptions[randomIndex(pianoDegreePromptOptions.length)] || pianoDegreePromptOptions[0];
+      }
+
+      function vexKeyForPianoDegree(noteName) {
+        const octave = /^(C|D|E|F|G)$/i.test(noteName) ? 4 : 3;
+        return vexKeyForPianoDegreeAtOctave(noteName, octave);
+      }
+
+      function vexKeyForPianoDegreeAtOctave(noteName, octave) {
+        return `${noteName.toLowerCase().replace(/b/g, "@").replace(/#/g, "#").replace(/@/g, "b")}/${octave}`;
+      }
+
+      function diatonicPosition(letter, octave) {
+        return (octave * 7) + NOTE_LETTER_INDEX[letter];
+      }
+
+      function parseScaleLetter(noteName) {
+        const match = /^([A-G])/.exec(noteName);
+        return match ? match[1] : "C";
+      }
+
+      function randomStaffPromptNote(noteName) {
+        const clef = Math.random() < 0.5 ? "treble" : "bass";
+        const range = PIANO_DEGREE_STAFF_RANGES[clef];
+        const minPosition = diatonicPosition(range.min.letter, range.min.octave);
+        const maxPosition = diatonicPosition(range.max.letter, range.max.octave);
+        const letter = parseScaleLetter(noteName);
+        const candidates = [];
+        for (let octave = 1; octave <= 6; octave += 1) {
+          const position = diatonicPosition(letter, octave);
+          if (position < minPosition || position > maxPosition) continue;
+          candidates.push({
+            clef,
+            vexKey: vexKeyForPianoDegreeAtOctave(noteName, octave)
+          });
+        }
+        return candidates[randomIndex(candidates.length)] || {
+          clef,
+          vexKey: vexKeyForPianoDegree(noteName)
+        };
+      }
+
+      function updatePianoDegreePromptUi() {
+        const promptType = currentPianoDegree?.promptType || "piano-to-degree";
+        answerLabel.textContent = promptType === "degree-to-note" ? "Note" : "Scale degree";
+        answerInput.placeholder = promptType === "degree-to-note" ? "e.g. G or F#" : "e.g. 4 or IV";
+      }
+
+      function makePianoDegreeQuestion() {
+        const [tonic, scaleNotes] = pianoDegreeKey();
+        let degreeIndex = randomIndex(scaleNotes.length);
+        const prompt = randomPianoDegreePrompt();
+        const promptType = prompt.id;
+        let questionId = `piano-degree:${pianoDegreeKeyIndex}:${promptType}:${degreeIndex}`;
+        if (questionId === lastQuestionId) {
+          degreeIndex = (degreeIndex + 1) % scaleNotes.length;
+          questionId = `piano-degree:${pianoDegreeKeyIndex}:${promptType}:${degreeIndex}`;
+        }
+        lastQuestionId = questionId;
+        currentPianoDegree = {
+          keyIndex: pianoDegreeKeyIndex,
+          tonic,
+          note: scaleNotes[degreeIndex],
+          degree: degreeIndex + 1,
+          answers: scaleDegreeAnswerMap[degreeIndex + 1] || [`${degreeIndex + 1}`],
+          promptType,
+          promptLabel: prompt.label,
+          counted: false
+        };
+        if (promptType === "staff-to-degree") {
+          Object.assign(currentPianoDegree, randomStaffPromptNote(currentPianoDegree.note));
+        }
+        modeElement.textContent = `${displayNote(tonic)} major`;
+        updatePianoDegreePromptUi();
+        degreesElement.classList.remove("note-question");
+        degreesElement.hidden = promptType === "piano-to-degree" || promptType === "staff-to-degree";
+        notationCard.hidden = promptType === "note-to-degree" || promptType === "degree-to-note";
+        firstDegreeElement.textContent = "";
+        secondDegreeElement.textContent = "";
+        connectorElement.hidden = true;
+        updateProgressDisplay();
+        notationCard.classList.remove("hidden", "incorrect-reveal");
+        notationCard.textContent = "";
+
+        if (promptType === "piano-to-degree") {
+          const rendered = window.MusicAppNotation?.drawExerciseChord(notationCard, [vexKeyForPianoDegree(currentPianoDegree.note)], {
+            displayMode: "piano",
+            height: 260
+          });
+          if (!rendered) {
+            notationCard.classList.add("hidden");
+            notationCard.textContent = "Piano chart failed to load";
+          }
+          return;
+        }
+
+        if (promptType === "staff-to-degree") {
+          const rendered = window.MusicAppNotation?.drawExerciseChord(notationCard, [currentPianoDegree.vexKey], {
+            displayMode: "stacked",
+            clef: currentPianoDegree.clef,
+            keySignature: tonic,
+            height: 260
+          });
+          if (!rendered) {
+            notationCard.classList.add("hidden");
+            notationCard.textContent = "VexFlow failed to load";
+          }
+          return;
+        }
+
+        if (promptType === "note-to-degree") {
+          degreesElement.classList.add("note-question");
+          firstDegreeElement.textContent = displayNote(currentPianoDegree.note);
+          return;
+        }
+
+        degreesElement.classList.add("note-question");
+        firstDegreeElement.textContent = `${currentPianoDegree.degree}`;
+      }
+
       function accidentalOffset(accidentalText) {
         return [...accidentalText].reduce((sum, accidental) => (
           sum + (accidental === "#" ? 1 : accidental === "b" ? -1 : 0)
         ), 0);
+      }
+
+      function intervalRootsForQuestion(interval, direction) {
+        const preferred = [];
+        const fallback = [];
+        INTERVAL_ROOTS.forEach((root) => {
+          const result = transposedNoteName(root, interval, direction);
+          if (!result) return;
+          const parsed = parseChordRoot(result);
+          if (!parsed) return;
+          const accidentalCount = parsed.accidental.length;
+          if (accidentalCount <= 1) preferred.push(root);
+          else if (accidentalCount <= 2) fallback.push(root);
+        });
+        return preferred.length ? preferred : fallback;
+      }
+
+      function chooseIntervalRoot(interval, direction, previousQuestionId) {
+        const roots = intervalRootsForQuestion(interval, direction);
+        if (!roots.length) return "C";
+        let root = roots[randomIndex(roots.length)];
+        let questionId = `interval:${root}:${interval.id}:${direction}`;
+        if (questionId === previousQuestionId && roots.length > 1) {
+          root = roots[(roots.indexOf(root) + 1) % roots.length];
+        }
+        return root;
+      }
+
+      function basicIntervalLabel(number) {
+        const ones = number % 10;
+        const tens = number % 100;
+        if (tens >= 11 && tens <= 13) return `${number}th`;
+        if (ones === 1) return `${number}st`;
+        if (ones === 2) return `${number}nd`;
+        if (ones === 3) return `${number}rd`;
+        return `${number}th`;
+      }
+
+      function pickBasicIntervalOption(options) {
+        const grouped = new Map();
+        options.forEach((option) => {
+          if (!grouped.has(option.number)) grouped.set(option.number, []);
+          grouped.get(option.number).push(option);
+        });
+        const numbers = [...grouped.keys()];
+        const number = numbers[randomIndex(numbers.length)];
+        const variants = grouped.get(number);
+        return variants[randomIndex(variants.length)];
+      }
+
+      function isNaturalNoteName(noteName) {
+        const parsed = parseChordRoot(noteName);
+        return Boolean(parsed && !parsed.accidental);
+      }
+
+      function naturalAnswersForBasicInterval(rootName, number, direction) {
+        return [...new Set(
+          intervalOptions
+            .filter((option) => selectedIntervalIds.has(option.id) && option.number === number)
+            .map((option) => transposedNoteName(rootName, option, direction))
+            .filter((noteName) => isNaturalNoteName(noteName))
+        )];
+      }
+
+      function makeBasicIntervalQuestion(activeIntervals, direction) {
+        const intervalNumbers = [...new Set(activeIntervals.map((option) => option.number))];
+        const candidates = [];
+
+        intervalNumbers.forEach((number) => {
+          NATURAL_INTERVAL_ROOTS.forEach((rootName) => {
+            const answers = naturalAnswersForBasicInterval(rootName, number, direction);
+            if (!answers.length) return;
+            candidates.push({
+              id: `interval:basic:${rootName}:${number}:${direction}`,
+              root: rootName,
+              interval: activeIntervals.find((option) => option.number === number) || activeIntervals[0],
+              direction,
+              answer: answers[0],
+              answers,
+              promptLabel: basicIntervalLabel(number)
+            });
+          });
+        });
+
+        if (!candidates.length) {
+          const fallbackInterval = pickBasicIntervalOption(activeIntervals);
+          const fallbackRoot = chooseIntervalRoot(fallbackInterval, direction, lastQuestionId);
+          return buildIntervalQuestion(fallbackRoot, fallbackInterval, direction);
+        }
+
+        let question = candidates[randomIndex(candidates.length)];
+        if (question.id === lastQuestionId && candidates.length > 1) {
+          question = candidates[(candidates.indexOf(question) + 1) % candidates.length];
+        }
+        return question;
       }
 
       function parseChordRoot(noteName) {
@@ -585,6 +1187,44 @@
         if (offset === 1) return "#";
         if (offset === 2) return "##";
         return "";
+      }
+
+      function wrappedLetterIndex(index) {
+        return ((index % CHORD_LETTERS.length) + CHORD_LETTERS.length) % CHORD_LETTERS.length;
+      }
+
+      function transposedNoteName(rootName, interval, direction) {
+        const parsedRoot = parseChordRoot(rootName);
+        if (!parsedRoot) return null;
+        const directionMultiplier = direction === "down" ? -1 : 1;
+        const rootIndex = CHORD_LETTERS.indexOf(parsedRoot.letter);
+        const targetLetter = CHORD_LETTERS[wrappedLetterIndex(rootIndex + (directionMultiplier * (interval.number - 1)))];
+        const desiredPitchClass = (pitchClassForNoteName(rootName) + (directionMultiplier * interval.semitones) + 1200) % 12;
+        const naturalPitchClass = CHORD_NATURAL_SEMITONES[targetLetter];
+        let accidentalOffsetValue = desiredPitchClass - naturalPitchClass;
+        while (accidentalOffsetValue > 6) accidentalOffsetValue -= 12;
+        while (accidentalOffsetValue < -6) accidentalOffsetValue += 12;
+        if (Math.abs(accidentalOffsetValue) > 2) return null;
+        return `${targetLetter}${accidentalTextForOffset(accidentalOffsetValue)}`;
+      }
+
+      function buildIntervalQuestion(rootName, interval, direction) {
+        const exactAnswer = transposedNoteName(rootName, interval, direction) || rootName;
+        const matchingIntervals = intervalPromptStyle === "basic"
+          ? intervalOptions.filter((option) => selectedIntervalIds.has(option.id) && option.number === interval.number)
+          : [interval];
+        const answers = [...new Set(matchingIntervals
+          .map((option) => transposedNoteName(rootName, option, direction))
+          .filter(Boolean))];
+        return {
+          id: `interval:${intervalPromptStyle}:${rootName}:${interval.id}:${direction}`,
+          root: rootName,
+          interval,
+          direction,
+          answer: exactAnswer,
+          answers: answers.length ? answers : [exactAnswer],
+          promptLabel: intervalPromptStyle === "basic" ? basicIntervalLabel(interval.number) : interval.label
+        };
       }
 
       function chordToneNames(rootName, intervals) {
@@ -864,30 +1504,64 @@
         return `${unlockMessage} Moved to ${chordKeyLabel(nextKey)}.`;
       }
 
-      function updateChordProgress() {
+      function updateProgressDisplay() {
+        if (exerciseType === "chord-drill") {
+          const key = chordDrillKey();
+          progressIndicatorElement.classList.add("visible");
+          progressIndicatorElement.setAttribute("aria-hidden", "false");
+          progressBarElement.style.width = "0%";
+          const chordSeconds = chordDrillChordDurationMs() / 1000;
+          const keySeconds = chordDrillKeyDurationMs() / 1000;
+          progressDetailElement.textContent = `${chordSeconds}s per chord · ${keySeconds}s per key · basic diatonic triads only.`;
+          chordDrillNextElement.textContent = chordDrillNextLabel
+            ? `${currentChordDrillLabel} → ${chordDrillNextLabel}`
+            : "";
+          progressChordsElement.innerHTML = chordDrillItemsForKey(key).map((item) => (
+            `<div class="progress-chord"><span class="progress-chord-name">${item.label}</span></div>`
+          )).join("");
+          return;
+        }
+
+        if (exerciseType === "chord") {
+          const curriculum = currentChordCurriculum();
+          const chordKey = selectedChordKey();
+          const activeItems = uniqueChordItemsByStatKey(activeChordItems());
+          const currentFlashDurationMs = chordFlashDuration(curriculum);
+          const streakProgress = curriculum.correctStreak % CHORD_STREAK_FOR_UNLOCK;
+          const percent = (streakProgress / CHORD_STREAK_FOR_UNLOCK) * 100;
+          const naturalRootsText = unlockedNaturalRoots(curriculum, chordKey).map(({ root }) => root).join(", ");
+          progressElement.textContent = `${chordKeyLabel(chordKey)}: ${chordStages[curriculum.stageIndex].label} streak ${streakProgress}/${CHORD_STREAK_FOR_UNLOCK}, timer ${(currentFlashDurationMs / 1000).toFixed(1)}s.`;
+          progressIndicatorElement.classList.add("visible");
+          progressIndicatorElement.setAttribute("aria-hidden", "false");
+          progressBarElement.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+          progressDetailElement.textContent = `${curriculum.stageIndex === 0 ? `Natural roots active: ${naturalRootsText}. ` : ""}Every correct answer reduces the shared timer by 0.1s and adds 1 to the streak. Every incorrect answer increases it by 0.1s and subtracts 2 from the streak. Every ${CHORD_STREAK_FOR_UNLOCK} streak points unlocks the next chord step and moves to the next key. Active set: ${activeItems.length} chords.`;
+          progressChordsElement.innerHTML = activeItems.map((item) => {
+            return `<div class="progress-chord"><span class="progress-chord-name">${item.displayKey}</span><span class="progress-chord-time">${(currentFlashDurationMs / 1000).toFixed(1)}s</span></div>`;
+          }).join("");
+          return;
+        }
+
+        if (exerciseType === "piano-degree") {
+          const [tonic] = pianoDegreeKey();
+          const percent = (pianoDegreeQuestionsInKey / PIANO_DEGREE_QUESTIONS_PER_KEY) * 100;
+          progressElement.textContent = `${displayNote(tonic)} major: question ${pianoDegreeQuestionsInKey + 1}/${PIANO_DEGREE_QUESTIONS_PER_KEY}`;
+          progressIndicatorElement.classList.add("visible");
+          progressIndicatorElement.setAttribute("aria-hidden", "false");
+          progressBarElement.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+          progressDetailElement.textContent = `${currentPianoDegree?.promptLabel || "Random prompt type"}. After every ${PIANO_DEGREE_QUESTIONS_PER_KEY} answered questions, the exercise moves to the next major key.`;
+          progressChordsElement.innerHTML = "";
+          return;
+        }
+
         if (exerciseType !== "chord") {
           progressElement.textContent = "";
           progressDetailElement.textContent = "";
+          chordDrillNextElement.textContent = "";
           progressIndicatorElement.classList.remove("visible");
           progressIndicatorElement.setAttribute("aria-hidden", "true");
           progressChordsElement.innerHTML = "";
           return;
         }
-        const curriculum = currentChordCurriculum();
-        const chordKey = selectedChordKey();
-        const activeItems = uniqueChordItemsByStatKey(activeChordItems());
-        const currentFlashDurationMs = chordFlashDuration(curriculum);
-        const streakProgress = curriculum.correctStreak % CHORD_STREAK_FOR_UNLOCK;
-        const percent = (streakProgress / CHORD_STREAK_FOR_UNLOCK) * 100;
-        const naturalRootsText = unlockedNaturalRoots(curriculum, chordKey).map(({ root }) => root).join(", ");
-        progressElement.textContent = `${chordKeyLabel(chordKey)}: ${chordStages[curriculum.stageIndex].label} streak ${streakProgress}/${CHORD_STREAK_FOR_UNLOCK}, timer ${(currentFlashDurationMs / 1000).toFixed(1)}s.`;
-        progressIndicatorElement.classList.add("visible");
-        progressIndicatorElement.setAttribute("aria-hidden", "false");
-        progressBarElement.style.width = `${Math.max(0, Math.min(100, percent))}%`;
-        progressDetailElement.textContent = `${curriculum.stageIndex === 0 ? `Natural roots active: ${naturalRootsText}. ` : ""}Every correct answer reduces the shared timer by 0.1s and adds 1 to the streak. Every incorrect answer increases it by 0.1s and subtracts 2 from the streak. Every ${CHORD_STREAK_FOR_UNLOCK} streak points unlocks the next chord step and moves to the next key. Active set: ${activeItems.length} chords.`;
-        progressChordsElement.innerHTML = activeItems.map((item) => {
-          return `<div class="progress-chord"><span class="progress-chord-name">${item.displayKey}</span><span class="progress-chord-time">${(currentFlashDurationMs / 1000).toFixed(1)}s</span></div>`;
-        }).join("");
       }
 
       function chooseChordItem() {
@@ -970,7 +1644,7 @@
         firstDegreeElement.textContent = "";
         secondDegreeElement.textContent = "";
         connectorElement.hidden = true;
-        updateChordProgress();
+        updateProgressDisplay();
         showChordQuestion(currentChord);
       }
 
@@ -980,16 +1654,87 @@
 
       function normaliseNote(value) {
         const note = value.trim()
+          .replace(/double\s+sharp/gi, "##")
+          .replace(/double\s+flat/gi, "bb")
+          .replace(/\bx\b/g, "##")
           .replace(/sharp/gi, "#")
           .replace(/flat/gi, "b")
           .replace(/\u266f/g, "#")
           .replace(/\u266d/g, "b")
+          .replace(/\ud834\udd2a/g, "##")
+          .replace(/\ud834\udd2b/g, "bb")
           .replace(/\s+/g, "");
         return note.charAt(0).toUpperCase() + note.slice(1).toLowerCase();
       }
 
       function displayNote(note) {
-        return note.replace("#", "\u266f").replace("b", "\u266d");
+        return note.replace(/#/g, "\u266f").replace(/b/g, "\u266d");
+      }
+
+      function saveIntervalSelection() {
+        try {
+          localStorage.setItem(INTERVAL_STORAGE_KEY, JSON.stringify([...selectedIntervalIds]));
+        } catch (error) {
+          console.warn("Unable to save interval selection.", error);
+        }
+      }
+
+      function loadIntervalSelection() {
+        try {
+          const saved = localStorage.getItem(INTERVAL_STORAGE_KEY);
+          if (!saved) return;
+          const parsed = JSON.parse(saved);
+          if (!Array.isArray(parsed)) return;
+          const validIds = new Set(intervalOptions.map((option) => option.id));
+          const selected = parsed.filter((id) => validIds.has(id));
+          if (selected.length) {
+            selectedIntervalIds = new Set(selected);
+          }
+        } catch (error) {
+          console.warn("Unable to load interval selection.", error);
+        }
+      }
+
+      function loadIntervalPromptStyle() {
+        try {
+          const saved = localStorage.getItem(INTERVAL_PROMPT_STYLE_STORAGE_KEY);
+          if (saved === "exact" || saved === "basic") {
+            intervalPromptStyle = saved;
+          }
+        } catch (error) {
+          console.warn("Unable to load interval prompt style.", error);
+        }
+      }
+
+      function saveIntervalPromptStyle() {
+        try {
+          localStorage.setItem(INTERVAL_PROMPT_STYLE_STORAGE_KEY, intervalPromptStyle);
+        } catch (error) {
+          console.warn("Unable to save interval prompt style.", error);
+        }
+      }
+
+      function syncIntervalPickerUi() {
+        intervalOptionsElement.querySelectorAll("input[type=\"checkbox\"]").forEach((input) => {
+          input.checked = selectedIntervalIds.has(input.value);
+        });
+      }
+
+      function populateIntervalOptions() {
+        intervalOptionsElement.innerHTML = intervalOptions.map((option) => (
+          `<label class="interval-option"><input type="checkbox" value="${option.id}"> <span>${option.short} - ${option.label}</span></label>`
+        )).join("");
+        intervalPromptStyleElement.value = intervalPromptStyle;
+        syncIntervalPickerUi();
+      }
+
+      function setSelectedIntervals(ids) {
+        if (!ids.length) return;
+        selectedIntervalIds = new Set(ids);
+        syncIntervalPickerUi();
+        saveIntervalSelection();
+        lastQuestionId = "";
+        if (exerciseType === "interval") makeQuestion();
       }
 
       function normaliseSignature(value) {
@@ -1056,11 +1801,14 @@
         if (exerciseType === "note") return normaliseNote(answer) === currentNote;
         if (exerciseType === "signature") return normaliseSignature(answer) === currentSignature;
         if (exerciseType === "chord") return normaliseChord(answer) === normaliseChord(currentChord.answer);
-        const trimmed = answer.trim();
-        return currentInterval.some((accepted) => {
-          if (/^[PMAmd]\d$/.test(accepted)) return trimmed === accepted;
-          return normalise(trimmed).toLowerCase() === normalise(accepted).toLowerCase();
-        });
+        if (exerciseType === "piano-degree") {
+          if (currentPianoDegree.promptType === "degree-to-note") {
+            return normaliseNote(answer) === currentPianoDegree.note;
+          }
+          const normalisedAnswer = normalise(answer).toLowerCase();
+          return currentPianoDegree.answers.some((accepted) => normalise(accepted).toLowerCase() === normalisedAnswer);
+        }
+        return currentInterval.answers.includes(normaliseNote(answer));
       }
 
       function scheduleNextQuestion(delay = 100) {
@@ -1075,6 +1823,13 @@
         chordKeySelectElement.value = selectedChordKeyId;
       }
 
+      function populatePianoDegreeKeyOptions() {
+        pianoDegreeKeySelectElement.innerHTML = majorPianoDegreeKeys.map((key, index) => (
+          `<option value="${index}">${pianoDegreeKeyLabel(key)}</option>`
+        )).join("");
+        pianoDegreeKeySelectElement.value = `${pianoDegreeKeyIndex}`;
+      }
+
       function setSelectedChordKey(keyId) {
         if (!chordKeyOptions.some((option) => option.id === keyId)) return;
         selectedChordKeyId = keyId;
@@ -1086,36 +1841,61 @@
         if (exerciseType === "chord") makeQuestion();
       }
 
+      function setSelectedPianoDegreeKey(keyIndexValue) {
+        const keyIndex = Number(keyIndexValue);
+        if (!Number.isInteger(keyIndex) || keyIndex < 0 || keyIndex >= majorPianoDegreeKeys.length) return;
+        pianoDegreeKeyIndex = keyIndex;
+        pianoDegreeQuestionsInKey = 0;
+        pianoDegreeKeySelectElement.value = `${keyIndex}`;
+        lastQuestionId = "";
+        if (exerciseType === "piano-degree") makeQuestion();
+      }
+
       function setExerciseType(type) {
+        const previousExerciseType = exerciseType;
+        if (previousExerciseType === "chord-drill" && type !== "chord-drill") {
+          stopChordDrill();
+        }
         exerciseType = type;
         const isInterval = type === "interval";
         const isNote = type === "note";
         const isSignature = type === "signature";
         const isChord = type === "chord";
+        const isPianoDegree = type === "piano-degree";
+        const isChordDrill = type === "chord-drill";
 
         intervalModeButton.classList.toggle("active", isInterval);
         noteModeButton.classList.toggle("active", isNote);
         signatureModeButton.classList.toggle("active", isSignature);
         chordModeButton.classList.toggle("active", isChord);
+        pianoDegreeModeButton.classList.toggle("active", isPianoDegree);
+        chordDrillModeButton.classList.toggle("active", isChordDrill);
         intervalModeButton.setAttribute("aria-pressed", isInterval);
         noteModeButton.setAttribute("aria-pressed", isNote);
         signatureModeButton.setAttribute("aria-pressed", isSignature);
         chordModeButton.setAttribute("aria-pressed", isChord);
-        degreesElement.classList.toggle("note-question", !isInterval && !isChord);
+        pianoDegreeModeButton.setAttribute("aria-pressed", isPianoDegree);
+        chordDrillModeButton.setAttribute("aria-pressed", isChordDrill);
+        degreesElement.classList.toggle("note-question", !isInterval && !isChord && !isPianoDegree && !isChordDrill);
+        degreesElement.classList.toggle("compact-question", isInterval);
         degreesElement.hidden = isChord;
-        notationCard.hidden = !isChord;
+        notationCard.hidden = !isChord && !isPianoDegree;
         notationCard.classList.remove("hidden");
         notationCard.textContent = "";
         chordKeyPickerElement.classList.toggle("visible", isChord);
-        progressIndicatorElement.classList.toggle("visible", isChord);
-        progressIndicatorElement.setAttribute("aria-hidden", isChord ? "false" : "true");
+        pianoDegreeKeyPickerElement.classList.toggle("visible", isPianoDegree);
+        chordDrillSettingsElement.classList.toggle("visible", isChordDrill);
+        intervalPickerElement.classList.toggle("visible", isInterval);
+        answerForm.hidden = isChordDrill;
 
         if (isInterval) {
-          titleElement.textContent = "Scale degree intervals";
-          instructionsElement.textContent = "Name the ascending interval from the first scale degree to the second.";
-          answerLabel.textContent = "Interval";
-          answerInput.placeholder = "e.g. major third or M3";
-          hintElement.textContent = 'Natural minor is used. Answers may be entered as names or shorthand, such as "perfect fifth" or "P5".';
+          titleElement.textContent = "Interval note targets";
+          instructionsElement.textContent = "Each question gives a starting note and an up or down interval. Enter the resulting note.";
+          answerLabel.textContent = "Resulting note";
+          answerInput.placeholder = "e.g. G# or Bb";
+          hintElement.textContent = intervalPromptStyle === "basic"
+            ? 'Basic prompt style hides quality and only uses natural-note questions and answers. If multiple selected qualities for that interval number lead to natural notes, any of those natural-note answers is accepted.'
+            : 'Use the interval picker to choose which intervals appear. Answers accept accidentals as symbols, "#" and "b", and double accidentals such as "##" or "bb".';
         } else if (isNote) {
           titleElement.textContent = "Scale degree notes";
           instructionsElement.textContent = "Name the note represented by the scale degree and key.";
@@ -1128,16 +1908,32 @@
           answerLabel.textContent = "Accidentals";
           answerInput.placeholder = "e.g. 4s or 1b";
           hintElement.textContent = 'Use "s" for sharps and "b" for flats. C major and A minor are excluded.';
-        } else {
+        } else if (isChord) {
           titleElement.textContent = "Chord flash cards";
           instructionsElement.textContent = "Pick a major key. Natural triads start with I and V, then add ii, vi, iii, vii degrees, and IV, with inversions included from the start. After that come natural sevenths, then accidental triads, then accidental sevenths, each with inversions included. Each correct answer reduces the shared flash timer by 0.1 seconds and adds 1 to your streak; each incorrect answer increases it by 0.1 seconds and subtracts 2 from the streak. Every 10 streak points unlock the next chord step and move to the next key.";
           answerLabel.textContent = "Chord";
           answerInput.placeholder = "e.g. Di, Gm/B, Cm7, Bi7b5/F";
           hintElement.textContent = 'Use "m" for major and "i" for minor. Chords appear randomly as staff notation, arpeggiated staff notation, or a piano keyboard view. Include slash bass notes for inversions. Wrong answers reveal the chord with a red border for 2 seconds before the next card.';
+        } else if (isChordDrill) {
+          titleElement.textContent = "Chord drill";
+          instructionsElement.textContent = "Read the chord symbol before it changes. Chords are selected randomly from the current major key, then the key changes automatically.";
+          answerLabel.textContent = "Chord";
+          answerInput.placeholder = "Chord symbol";
+          hintElement.textContent = "Basic diatonic triads are used: major, minor, and diminished. Change the durations above while the drill is paused or running.";
+        } else {
+          titleElement.textContent = "Piano scale degrees";
+          instructionsElement.textContent = "Each question randomly uses a piano chart, sheet music, a note prompt, or a scale-degree prompt in the current major key.";
+          answerLabel.textContent = "Scale degree";
+          answerInput.placeholder = "e.g. 4 or IV";
+          hintElement.textContent = 'Question types are chosen randomly. Scale degree answers accept numbers, roman numerals, and names like "tonic" or "dominant". Note answers accept note names such as "G" or "F#". The key changes every 100 answered questions unless you choose a different key.';
         }
 
-        updateChordProgress();
-        makeQuestion();
+        updateProgressDisplay();
+        if (isChordDrill && previousExerciseType !== "chord-drill") {
+          startChordDrill();
+        } else {
+          makeQuestion();
+        }
       }
 
       function submitCurrentAnswer() {
@@ -1147,16 +1943,28 @@
           recordChordAttempt(correct);
         }
         const answerText = exerciseType === "interval"
-          ? `${currentInterval[0]} (${currentInterval[1]})`
+          ? currentInterval.answers.map((note) => displayNote(note)).join(" or ")
           : exerciseType === "note" ? displayNote(currentNote)
           : exerciseType === "signature" ? currentSignature
+          : exerciseType === "piano-degree"
+            ? (currentPianoDegree.promptType === "degree-to-note" ? displayNote(currentPianoDegree.note) : `${currentPianoDegree.degree}`)
           : currentChord.label;
         const unlockMessage = correct && exerciseType === "chord" ? maybeAdvanceChordCurriculum() : "";
         feedbackElement.className = `feedback ${correct ? "correct" : "incorrect"}`;
         feedbackElement.textContent = correct
           ? `Correct - ${answerText}.${unlockMessage ? ` ${unlockMessage}` : ""}`
           : `Not quite. The answer is ${answerText}.`;
-        updateChordProgress();
+        if (exerciseType === "piano-degree" && !currentPianoDegree.counted) {
+          currentPianoDegree.counted = true;
+          pianoDegreeQuestionsInKey += 1;
+          if (pianoDegreeQuestionsInKey >= PIANO_DEGREE_QUESTIONS_PER_KEY) {
+            pianoDegreeQuestionsInKey = 0;
+            pianoDegreeKeyIndex = (pianoDegreeKeyIndex + 1) % majorPianoDegreeKeys.length;
+            pianoDegreeKeySelectElement.value = `${pianoDegreeKeyIndex}`;
+            lastQuestionId = "";
+          }
+        }
+        updateProgressDisplay();
         if (correct) {
           scheduleNextQuestion();
           return;
@@ -1187,18 +1995,54 @@
       noteModeButton.addEventListener("click", () => setExerciseType("note"));
       signatureModeButton.addEventListener("click", () => setExerciseType("signature"));
       chordModeButton.addEventListener("click", () => setExerciseType("chord"));
+      pianoDegreeModeButton.addEventListener("click", () => setExerciseType("piano-degree"));
+      chordDrillModeButton.addEventListener("click", () => setExerciseType("chord-drill"));
+      chordDrillToggleElement.addEventListener("click", () => {
+        if (chordDrillRunning) stopChordDrill();
+        else startChordDrill();
+      });
+      chordDrillChordSecondsElement.addEventListener("change", restartChordDrillTiming);
+      chordDrillKeySecondsElement.addEventListener("change", restartChordDrillTiming);
       chordKeySelectElement.addEventListener("change", (event) => {
         setSelectedChordKey(event.target.value);
+      });
+      pianoDegreeKeySelectElement.addEventListener("change", (event) => {
+        setSelectedPianoDegreeKey(event.target.value);
+      });
+      intervalOptionsElement.addEventListener("change", (event) => {
+        if (event.target.tagName !== "INPUT") return;
+        const checkedIds = [...intervalOptionsElement.querySelectorAll("input[type=\"checkbox\"]:checked")].map((input) => input.value);
+        if (!checkedIds.length) {
+          event.target.checked = true;
+          return;
+        }
+        setSelectedIntervals(checkedIds);
+      });
+      selectAllIntervalsButton.addEventListener("click", () => {
+        setSelectedIntervals(intervalOptions.map((option) => option.id));
+      });
+      clearIntervalsButton.addEventListener("click", () => {
+        setSelectedIntervals(intervalOptions.filter((option) => option.number <= 8).map((option) => option.id));
+      });
+      intervalPromptStyleElement.addEventListener("change", (event) => {
+        intervalPromptStyle = event.target.value === "basic" ? "basic" : "exact";
+        saveIntervalPromptStyle();
+        lastQuestionId = "";
+        if (exerciseType === "interval") setExerciseType("interval");
       });
       nextButton.addEventListener("click", makeQuestion);
 
       function initializeExercises() {
         loadChordProgress();
+        loadIntervalSelection();
+        loadIntervalPromptStyle();
         populateChordKeyOptions();
+        populatePianoDegreeKeyOptions();
+        populateIntervalOptions();
         const ready = window.MusicAppNotation?.initializeVexFlow
           ? window.MusicAppNotation.initializeVexFlow()
           : Promise.resolve();
-        ready.then(() => makeQuestion());
+        ready.then(() => setExerciseType(exerciseType));
       }
 
       initializeExercises();
