@@ -573,6 +573,18 @@
         label: `${tonic} major`,
         accidentalPreference: tonic.includes("b") || tonic === "F" || tonic === "C" ? "flat" : "sharp"
       }));
+      const CHORD_DRILL_CIRCLE_OF_FOURTHS = ["C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D", "G"];
+      const chordDrillKeyOptions = CHORD_DRILL_CIRCLE_OF_FOURTHS.map((tonic) => {
+        const key = majorPianoDegreeKeys.find(([keyTonic]) => keyTonic === tonic);
+        const scaleNotes = key?.[1] || [];
+        return {
+          id: `major:${tonic}`,
+          tonic,
+          scaleNotes,
+          label: `${tonic} major`,
+          accidentalPreference: tonic.includes("b") || tonic === "F" || tonic === "C" ? "flat" : "sharp"
+        };
+      });
       const NATURAL_UNLOCK_ORDER = [0, 4, 1, 5, 2, 6, 3];
       const NATURAL_UNLOCK_LABELS = ["I", "V", "ii", "vi", "iii", "vii°", "IV"];
       const NATURAL_TRIAD_QUALITIES = ["M", "m", "m", "M", "M", "m", "dim"];
@@ -654,7 +666,7 @@
       let pianoDegreeKeyIndex = 0;
       let pianoDegreeQuestionsInKey = 0;
       let selectedChordKeyId = chordKeyOptions[0].id;
-      let chordDrillKeyId = chordKeyOptions[0].id;
+      let chordDrillKeyId = chordDrillKeyOptions[0].id;
       let currentChordDrillLabel = "";
       let chordDrillNextLabel = "";
       let chordDrillStartedAt = 0;
@@ -733,7 +745,7 @@
       }
 
       function chordDrillKey() {
-        return chordKeyOptions.find((option) => option.id === chordDrillKeyId) || chordKeyOptions[0];
+        return chordDrillKeyOptions.find((option) => option.id === chordDrillKeyId) || chordDrillKeyOptions[0];
       }
 
       function chordDrillItemsForKey(key) {
@@ -799,8 +811,8 @@
         clearTimeout(chordDrillKeyTimer);
         if (!chordDrillRunning || exerciseType !== "chord-drill") return;
         chordDrillKeyTimer = setTimeout(() => {
-          const otherKeys = chordKeyOptions.filter((key) => key.id !== chordDrillKeyId);
-          chordDrillKeyId = otherKeys[randomIndex(otherKeys.length)].id;
+          const currentKeyIndex = chordDrillKeyOptions.findIndex((key) => key.id === chordDrillKeyId);
+          chordDrillKeyId = chordDrillKeyOptions[(currentKeyIndex + 1) % chordDrillKeyOptions.length].id;
           currentChordDrillLabel = "";
           makeChordDrillQuestion();
           scheduleChordDrillKey();
@@ -837,7 +849,7 @@
       }
 
       function startChordDrill() {
-        chordDrillKeyId = chordKeyOptions[randomIndex(chordKeyOptions.length)].id;
+        chordDrillKeyId = chordDrillKeyOptions[randomIndex(chordDrillKeyOptions.length)].id;
         currentChordDrillLabel = "";
         chordDrillRunning = true;
         chordDrillToggleElement.textContent = "Stop drill";
@@ -1512,7 +1524,7 @@
           progressBarElement.style.width = "0%";
           const chordSeconds = chordDrillChordDurationMs() / 1000;
           const keySeconds = chordDrillKeyDurationMs() / 1000;
-          progressDetailElement.textContent = `${chordSeconds}s per chord · ${keySeconds}s per key · basic diatonic triads only.`;
+          progressDetailElement.textContent = `${chordSeconds}s per chord · ${keySeconds}s per key · circle of fourths · basic diatonic triads only.`;
           chordDrillNextElement.textContent = chordDrillNextLabel
             ? `${currentChordDrillLabel} → ${chordDrillNextLabel}`
             : "";
@@ -1916,7 +1928,7 @@
           hintElement.textContent = 'Use "m" for major and "i" for minor. Chords appear randomly as staff notation, arpeggiated staff notation, or a piano keyboard view. Include slash bass notes for inversions. Wrong answers reveal the chord with a red border for 2 seconds before the next card.';
         } else if (isChordDrill) {
           titleElement.textContent = "Chord drill";
-          instructionsElement.textContent = "Read the chord symbol before it changes. Chords are selected randomly from the current major key, then the key changes automatically.";
+          instructionsElement.textContent = "Read the chord symbol before it changes. Chords are selected randomly from the current major key, then the key changes through the circle of fourths.";
           answerLabel.textContent = "Chord";
           answerInput.placeholder = "Chord symbol";
           hintElement.textContent = "Basic diatonic triads are used: major, minor, and diminished. Change the durations above while the drill is paused or running.";
