@@ -143,6 +143,16 @@
         grid-column: 1 / -1;
       }
 
+      .chord-drill-direction {
+        display: flex;
+        flex-direction: column;
+        gap: .35rem;
+      }
+
+      .chord-drill-direction span {
+        font-weight: 650;
+      }
+
       .interval-picker {
         display: none;
         margin: 1rem 0 1.25rem;
@@ -365,6 +375,10 @@
           Key duration (seconds)
           <input id="chordDrillKeySeconds" type="number" min="1" max="3600" step="1" value="30">
         </label>
+        <div class="chord-drill-direction">
+          <span id="chordDrillDirectionLabel">Key direction</span>
+          <button id="chordDrillDirectionToggle" type="button" aria-pressed="false">Circle of fourths</button>
+        </div>
         <button id="chordDrillToggle" type="button">Start drill</button>
       </div>
       <div class="interval-picker" id="intervalPicker">
@@ -516,6 +530,8 @@
         ["Bb", ["Bb", "C", "D", "Eb", "F", "G", "A"]],
         ["F", ["F", "G", "A", "Bb", "C", "D", "E"]]
       ];
+      const chordDrillKeyScales = new Map(majorPianoDegreeKeys);
+      chordDrillKeyScales.set("Gb", ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"]);
       const scaleDegreeAnswerMap = {
         1: ["1", "i", "do", "tonic"],
         2: ["2", "ii", "re", "supertonic"],
@@ -574,17 +590,25 @@
         accidentalPreference: tonic.includes("b") || tonic === "F" || tonic === "C" ? "flat" : "sharp"
       }));
       const CHORD_DRILL_CIRCLE_OF_FOURTHS = ["C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D", "G"];
-      const chordDrillKeyOptions = CHORD_DRILL_CIRCLE_OF_FOURTHS.map((tonic) => {
-        const key = majorPianoDegreeKeys.find(([keyTonic]) => keyTonic === tonic);
-        const scaleNotes = key?.[1] || [];
-        return {
-          id: `major:${tonic}`,
-          tonic,
-          scaleNotes,
-          label: `${tonic} major`,
-          accidentalPreference: tonic.includes("b") || tonic === "F" || tonic === "C" ? "flat" : "sharp"
-        };
-      });
+      const CHORD_DRILL_CIRCLE_OF_FIFTHS = ["C", "G", "D", "A", "E", "B", "Gb", "Db", "Ab", "Eb", "Bb", "F"];
+      const CHORD_DRILL_KEY_SEQUENCES = {
+        fourths: CHORD_DRILL_CIRCLE_OF_FOURTHS,
+        fifths: CHORD_DRILL_CIRCLE_OF_FIFTHS
+      };
+      function buildChordDrillKeyOptions(sequence) {
+        return sequence.map((tonic) => {
+          const scaleNotes = chordDrillKeyScales.get(tonic) || [];
+          return {
+            id: `major:${tonic}`,
+            tonic,
+            scaleNotes,
+            label: `${tonic} major`,
+            accidentalPreference: tonic.includes("b") || tonic === "F" || tonic === "C" ? "flat" : "sharp"
+          };
+        });
+      }
+      let chordDrillDirection = "fourths";
+      let chordDrillKeyOptions = buildChordDrillKeyOptions(CHORD_DRILL_KEY_SEQUENCES[chordDrillDirection]);
       const NATURAL_UNLOCK_ORDER = [0, 4, 1, 5, 2, 6, 3];
       const NATURAL_UNLOCK_LABELS = ["I", "V", "ii", "vi", "iii", "vii°", "IV"];
       const NATURAL_TRIAD_QUALITIES = ["M", "m", "m", "M", "M", "m", "dim"];
@@ -621,6 +645,7 @@
       const chordDrillSettingsElement = document.querySelector("#chordDrillSettings");
       const chordDrillChordSecondsElement = document.querySelector("#chordDrillChordSeconds");
       const chordDrillKeySecondsElement = document.querySelector("#chordDrillKeySeconds");
+      const chordDrillDirectionToggleElement = document.querySelector("#chordDrillDirectionToggle");
       const chordDrillToggleElement = document.querySelector("#chordDrillToggle");
       const intervalPickerElement = document.querySelector("#intervalPicker");
       const intervalOptionsElement = document.querySelector("#intervalOptions");
@@ -746,6 +771,28 @@
 
       function chordDrillKey() {
         return chordDrillKeyOptions.find((option) => option.id === chordDrillKeyId) || chordDrillKeyOptions[0];
+      }
+
+      function chordDrillDirectionLabel() {
+        return chordDrillDirection === "fifths" ? "fifths" : "fourths";
+      }
+
+      function updateChordDrillDirectionUi() {
+        const direction = chordDrillDirectionLabel();
+        chordDrillDirectionToggleElement.textContent = `Circle of ${direction}`;
+        chordDrillDirectionToggleElement.setAttribute("aria-pressed", `${chordDrillDirection === "fifths"}`);
+      }
+
+      function toggleChordDrillDirection() {
+        chordDrillDirection = chordDrillDirection === "fourths" ? "fifths" : "fourths";
+        chordDrillKeyOptions = buildChordDrillKeyOptions(CHORD_DRILL_KEY_SEQUENCES[chordDrillDirection]);
+        updateChordDrillDirectionUi();
+        if (exerciseType === "chord-drill") {
+          instructionsElement.textContent = `Read the chord symbol before it changes. Chords are selected randomly from the current major key, then the key changes through the circle of ${chordDrillDirectionLabel()}.`;
+        }
+        clearTimeout(chordDrillKeyTimer);
+        if (chordDrillRunning && exerciseType === "chord-drill") scheduleChordDrillKey();
+        updateProgressDisplay();
       }
 
       function chordDrillItemsForKey(key) {
@@ -1524,7 +1571,7 @@
           progressBarElement.style.width = "0%";
           const chordSeconds = chordDrillChordDurationMs() / 1000;
           const keySeconds = chordDrillKeyDurationMs() / 1000;
-          progressDetailElement.textContent = `${chordSeconds}s per chord · ${keySeconds}s per key · circle of fourths · basic diatonic triads only.`;
+          progressDetailElement.textContent = `${chordSeconds}s per chord · ${keySeconds}s per key · circle of ${chordDrillDirectionLabel()} · basic diatonic triads only.`;
           chordDrillNextElement.textContent = chordDrillNextLabel
             ? `${currentChordDrillLabel} → ${chordDrillNextLabel}`
             : "";
@@ -1928,7 +1975,7 @@
           hintElement.textContent = 'Use "m" for major and "i" for minor. Chords appear randomly as staff notation, arpeggiated staff notation, or a piano keyboard view. Include slash bass notes for inversions. Wrong answers reveal the chord with a red border for 2 seconds before the next card.';
         } else if (isChordDrill) {
           titleElement.textContent = "Chord drill";
-          instructionsElement.textContent = "Read the chord symbol before it changes. Chords are selected randomly from the current major key, then the key changes through the circle of fourths.";
+          instructionsElement.textContent = `Read the chord symbol before it changes. Chords are selected randomly from the current major key, then the key changes through the circle of ${chordDrillDirectionLabel()}.`;
           answerLabel.textContent = "Chord";
           answerInput.placeholder = "Chord symbol";
           hintElement.textContent = "Basic diatonic triads are used: major, minor, and diminished. Change the durations above while the drill is paused or running.";
@@ -2015,6 +2062,7 @@
       });
       chordDrillChordSecondsElement.addEventListener("change", restartChordDrillTiming);
       chordDrillKeySecondsElement.addEventListener("change", restartChordDrillTiming);
+      chordDrillDirectionToggleElement.addEventListener("click", toggleChordDrillDirection);
       chordKeySelectElement.addEventListener("change", (event) => {
         setSelectedChordKey(event.target.value);
       });
@@ -2051,6 +2099,7 @@
         populateChordKeyOptions();
         populatePianoDegreeKeyOptions();
         populateIntervalOptions();
+        updateChordDrillDirectionUi();
         const ready = window.MusicAppNotation?.initializeVexFlow
           ? window.MusicAppNotation.initializeVexFlow()
           : Promise.resolve();
