@@ -119,6 +119,52 @@
         background: #fff;
       }
 
+      .piano-degree-random-key {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .55rem;
+        margin: .8rem 0 0;
+        color: #0f172a;
+        font-weight: 500;
+      }
+
+      .piano-degree-random-key input {
+        width: 1rem;
+        height: 1rem;
+      }
+
+      .piano-degree-settings {
+        display: none;
+        margin: 1rem 0 1.25rem;
+        padding: 1rem;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+      }
+
+      .piano-degree-settings.visible { display: block; }
+
+      .piano-degree-prompt-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .6rem .9rem;
+      }
+
+      .piano-degree-prompt {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin: 0;
+        color: #0f172a;
+        font-weight: 500;
+      }
+
+      .piano-degree-prompt input {
+        flex: 0 0 auto;
+        width: 1rem;
+        height: 1rem;
+      }
+
       .chord-drill-settings {
         display: none;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -365,6 +411,34 @@
       <div class="key-picker" id="pianoDegreeKeyPicker">
         <label for="pianoDegreeKeySelect">Piano degree key</label>
         <select id="pianoDegreeKeySelect" name="pianoDegreeKey"></select>
+        <label class="piano-degree-random-key" for="pianoDegreeRandomKey">
+          <input id="pianoDegreeRandomKey" name="pianoDegreeRandomKey" type="checkbox">
+          Random key each question
+        </label>
+      </div>
+      <div class="piano-degree-settings" id="pianoDegreeSettings">
+        <div class="piano-degree-prompt-grid" role="group" aria-label="Piano degree prompt types">
+          <label class="piano-degree-prompt" for="pianoDegreePromptDegreeToNote">
+            <input id="pianoDegreePromptDegreeToNote" type="checkbox" checked>
+            Degree → note
+          </label>
+          <label class="piano-degree-prompt" for="pianoDegreePromptNoteToDegree">
+            <input id="pianoDegreePromptNoteToDegree" type="checkbox" checked>
+            Note → degree
+          </label>
+          <label class="piano-degree-prompt" for="pianoDegreePromptStaffToDegree">
+            <input id="pianoDegreePromptStaffToDegree" type="checkbox">
+            Sheet music → degree
+          </label>
+          <label class="piano-degree-prompt" for="pianoDegreePromptPianoToDegree">
+            <input id="pianoDegreePromptPianoToDegree" type="checkbox">
+            Piano diagram → degree
+          </label>
+          <label class="piano-degree-prompt" for="pianoDegreePromptPianoDegreeToKey">
+            <input id="pianoDegreePromptPianoDegreeToKey" type="checkbox">
+            Piano diagram + degree → key
+          </label>
+        </div>
       </div>
       <div class="chord-drill-settings" id="chordDrillSettings">
         <label for="chordDrillChordSeconds">
@@ -399,7 +473,6 @@
         <div class="interval-grid" id="intervalOptions"></div>
       </div>
 
-      <div class="mode" id="mode"></div>
       <p class="progress" id="progress"></p>
       <div class="progress-indicator" id="progressIndicator" aria-hidden="true">
         <div class="progress-track" aria-hidden="true">
@@ -409,6 +482,7 @@
         <p class="chord-drill-next" id="chordDrillNext" aria-live="polite"></p>
         <div class="progress-chords" id="progressChords"></div>
       </div>
+      <div class="mode" id="mode"></div>
       <div class="degrees" aria-live="polite">
         <span id="firstDegree"></span>
         <span class="arrow" aria-hidden="true">&rarr;</span>
@@ -545,7 +619,8 @@
         { id: "piano-to-degree", label: "Piano to scale degree" },
         { id: "staff-to-degree", label: "Sheet music to scale degree" },
         { id: "note-to-degree", label: "Note to scale degree" },
-        { id: "degree-to-note", label: "Scale degree to note" }
+        { id: "degree-to-note", label: "Scale degree to note" },
+        { id: "piano-degree-to-key", label: "Piano diagram and degree to key" }
       ];
       const NOTE_LETTER_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
       const PIANO_DEGREE_STAFF_RANGES = {
@@ -642,6 +717,15 @@
       const chordKeySelectElement = document.querySelector("#chordKeySelect");
       const pianoDegreeKeyPickerElement = document.querySelector("#pianoDegreeKeyPicker");
       const pianoDegreeKeySelectElement = document.querySelector("#pianoDegreeKeySelect");
+      const pianoDegreeRandomKeyElement = document.querySelector("#pianoDegreeRandomKey");
+      const pianoDegreeSettingsElement = document.querySelector("#pianoDegreeSettings");
+      const pianoDegreePromptInputElements = {
+        "piano-to-degree": document.querySelector("#pianoDegreePromptPianoToDegree"),
+        "staff-to-degree": document.querySelector("#pianoDegreePromptStaffToDegree"),
+        "note-to-degree": document.querySelector("#pianoDegreePromptNoteToDegree"),
+        "degree-to-note": document.querySelector("#pianoDegreePromptDegreeToNote"),
+        "piano-degree-to-key": document.querySelector("#pianoDegreePromptPianoDegreeToKey")
+      };
       const chordDrillSettingsElement = document.querySelector("#chordDrillSettings");
       const chordDrillChordSecondsElement = document.querySelector("#chordDrillChordSeconds");
       const chordDrillKeySecondsElement = document.querySelector("#chordDrillKeySeconds");
@@ -1007,7 +1091,8 @@
       }
 
       function randomPianoDegreePrompt() {
-        return pianoDegreePromptOptions[randomIndex(pianoDegreePromptOptions.length)] || pianoDegreePromptOptions[0];
+        const promptOptions = pianoDegreePromptOptions.filter(({ id }) => pianoDegreePromptInputElements[id].checked);
+        return promptOptions[randomIndex(promptOptions.length)] || promptOptions[0];
       }
 
       function vexKeyForPianoDegree(noteName) {
@@ -1051,11 +1136,43 @@
 
       function updatePianoDegreePromptUi() {
         const promptType = currentPianoDegree?.promptType || "piano-to-degree";
-        answerLabel.textContent = promptType === "degree-to-note" ? "Note" : "Scale degree";
-        answerInput.placeholder = promptType === "degree-to-note" ? "e.g. G or F#" : "e.g. 4 or IV";
+        if (promptType === "degree-to-note") {
+          answerLabel.textContent = "Note";
+          answerInput.placeholder = "e.g. G or F#";
+          return;
+        }
+        if (promptType === "piano-degree-to-key") {
+          answerLabel.textContent = "Key";
+          answerInput.placeholder = "e.g. G or Bb";
+          return;
+        }
+        answerLabel.textContent = "Scale degree";
+        answerInput.placeholder = "e.g. 4 or IV";
+      }
+
+      function pianoDegreeInstructions() {
+        const promptLabels = pianoDegreePromptOptions
+          .filter(({ id }) => pianoDegreePromptInputElements[id].checked)
+          .map(({ label }) => label.toLowerCase());
+        const keyDescription = pianoDegreeRandomKeyElement.checked
+          ? "A different random key is used for each question."
+          : "Questions use the selected major key.";
+        return `Questions randomly use ${promptLabels.join(", ")}. ${keyDescription}`;
+      }
+
+      function selectRandomPianoDegreeKey() {
+        if (!pianoDegreeRandomKeyElement.checked || majorPianoDegreeKeys.length < 2) return;
+        let nextKeyIndex = randomIndex(majorPianoDegreeKeys.length);
+        if (nextKeyIndex === pianoDegreeKeyIndex) {
+          nextKeyIndex = (nextKeyIndex + 1) % majorPianoDegreeKeys.length;
+        }
+        pianoDegreeKeyIndex = nextKeyIndex;
+        pianoDegreeQuestionsInKey = 0;
+        pianoDegreeKeySelectElement.value = `${pianoDegreeKeyIndex}`;
       }
 
       function makePianoDegreeQuestion() {
+        selectRandomPianoDegreeKey();
         const [tonic, scaleNotes] = pianoDegreeKey();
         let degreeIndex = randomIndex(scaleNotes.length);
         const prompt = randomPianoDegreePrompt();
@@ -1079,7 +1196,9 @@
         if (promptType === "staff-to-degree") {
           Object.assign(currentPianoDegree, randomStaffPromptNote(currentPianoDegree.note));
         }
-        modeElement.textContent = `${displayNote(tonic)} major`;
+        modeElement.textContent = promptType === "piano-degree-to-key"
+          ? "Find the major key"
+          : `${displayNote(tonic)} major`;
         updatePianoDegreePromptUi();
         degreesElement.classList.remove("note-question");
         degreesElement.hidden = promptType === "piano-to-degree" || promptType === "staff-to-degree";
@@ -1092,6 +1211,20 @@
         notationCard.textContent = "";
 
         if (promptType === "piano-to-degree") {
+          const rendered = window.MusicAppNotation?.drawExerciseChord(notationCard, [vexKeyForPianoDegree(currentPianoDegree.note)], {
+            displayMode: "piano",
+            height: 260
+          });
+          if (!rendered) {
+            notationCard.classList.add("hidden");
+            notationCard.textContent = "Piano chart failed to load";
+          }
+          return;
+        }
+
+        if (promptType === "piano-degree-to-key") {
+          degreesElement.classList.add("note-question");
+          firstDegreeElement.textContent = `degree ${currentPianoDegree.degree}`;
           const rendered = window.MusicAppNotation?.drawExerciseChord(notationCard, [vexKeyForPianoDegree(currentPianoDegree.note)], {
             displayMode: "piano",
             height: 260
@@ -1603,11 +1736,15 @@
         if (exerciseType === "piano-degree") {
           const [tonic] = pianoDegreeKey();
           const percent = (pianoDegreeQuestionsInKey / PIANO_DEGREE_QUESTIONS_PER_KEY) * 100;
-          progressElement.textContent = `${displayNote(tonic)} major: question ${pianoDegreeQuestionsInKey + 1}/${PIANO_DEGREE_QUESTIONS_PER_KEY}`;
+          progressElement.textContent = pianoDegreeRandomKeyElement.checked
+            ? `Random key: question ${pianoDegreeQuestionsInKey + 1}`
+            : `${displayNote(tonic)} major: question ${pianoDegreeQuestionsInKey + 1}/${PIANO_DEGREE_QUESTIONS_PER_KEY}`;
           progressIndicatorElement.classList.add("visible");
           progressIndicatorElement.setAttribute("aria-hidden", "false");
           progressBarElement.style.width = `${Math.max(0, Math.min(100, percent))}%`;
-          progressDetailElement.textContent = `${currentPianoDegree?.promptLabel || "Random prompt type"}. After every ${PIANO_DEGREE_QUESTIONS_PER_KEY} answered questions, the exercise moves to the next major key.`;
+          progressDetailElement.textContent = pianoDegreeRandomKeyElement.checked
+            ? `${currentPianoDegree?.promptLabel || "Random prompt type"}. A different key is selected for every question.`
+            : `${currentPianoDegree?.promptLabel || "Random prompt type"}. After every ${PIANO_DEGREE_QUESTIONS_PER_KEY} answered questions, the exercise moves to the next major key.`;
           progressChordsElement.innerHTML = "";
           return;
         }
@@ -1724,6 +1861,10 @@
           .replace(/\ud834\udd2b/g, "bb")
           .replace(/\s+/g, "");
         return note.charAt(0).toUpperCase() + note.slice(1).toLowerCase();
+      }
+
+      function normaliseKeyAnswer(value) {
+        return normaliseNote(value.replace(/\s+major\s*$/i, ""));
       }
 
       function displayNote(note) {
@@ -1861,6 +2002,9 @@
         if (exerciseType === "signature") return normaliseSignature(answer) === currentSignature;
         if (exerciseType === "chord") return normaliseChord(answer) === normaliseChord(currentChord.answer);
         if (exerciseType === "piano-degree") {
+          if (currentPianoDegree.promptType === "piano-degree-to-key") {
+            return normaliseKeyAnswer(answer) === normaliseKeyAnswer(currentPianoDegree.tonic);
+          }
           if (currentPianoDegree.promptType === "degree-to-note") {
             return normaliseNote(answer) === currentPianoDegree.note;
           }
@@ -1943,6 +2087,7 @@
         notationCard.textContent = "";
         chordKeyPickerElement.classList.toggle("visible", isChord);
         pianoDegreeKeyPickerElement.classList.toggle("visible", isPianoDegree);
+        pianoDegreeSettingsElement.classList.toggle("visible", isPianoDegree);
         chordDrillSettingsElement.classList.toggle("visible", isChordDrill);
         intervalPickerElement.classList.toggle("visible", isInterval);
         answerForm.hidden = isChordDrill;
@@ -1981,7 +2126,7 @@
           hintElement.textContent = "Basic diatonic triads are used: major, minor, and diminished. Change the durations above while the drill is paused or running.";
         } else {
           titleElement.textContent = "Piano scale degrees";
-          instructionsElement.textContent = "Each question randomly uses a piano chart, sheet music, a note prompt, or a scale-degree prompt in the current major key.";
+          instructionsElement.textContent = pianoDegreeInstructions();
           answerLabel.textContent = "Scale degree";
           answerInput.placeholder = "e.g. 4 or IV";
           hintElement.textContent = 'Question types are chosen randomly. Scale degree answers accept numbers, roman numerals, and names like "tonic" or "dominant". Note answers accept note names such as "G" or "F#". The key changes every 100 answered questions unless you choose a different key.';
@@ -2006,7 +2151,11 @@
           : exerciseType === "note" ? displayNote(currentNote)
           : exerciseType === "signature" ? currentSignature
           : exerciseType === "piano-degree"
-            ? (currentPianoDegree.promptType === "degree-to-note" ? displayNote(currentPianoDegree.note) : `${currentPianoDegree.degree}`)
+            ? (currentPianoDegree.promptType === "degree-to-note"
+              ? displayNote(currentPianoDegree.note)
+              : currentPianoDegree.promptType === "piano-degree-to-key"
+                ? displayNote(currentPianoDegree.tonic)
+                : `${currentPianoDegree.degree}`)
           : currentChord.label;
         const unlockMessage = correct && exerciseType === "chord" ? maybeAdvanceChordCurriculum() : "";
         feedbackElement.className = `feedback ${correct ? "correct" : "incorrect"}`;
@@ -2068,6 +2217,25 @@
       });
       pianoDegreeKeySelectElement.addEventListener("change", (event) => {
         setSelectedPianoDegreeKey(event.target.value);
+      });
+      pianoDegreeRandomKeyElement.addEventListener("change", () => {
+        if (exerciseType !== "piano-degree") return;
+        instructionsElement.textContent = pianoDegreeInstructions();
+        lastQuestionId = "";
+        makeQuestion();
+      });
+      Object.values(pianoDegreePromptInputElements).forEach((input) => {
+        input.addEventListener("change", (event) => {
+          const selectedInputs = Object.values(pianoDegreePromptInputElements).filter((promptInput) => promptInput.checked);
+          if (!selectedInputs.length) {
+            event.target.checked = true;
+            return;
+          }
+          if (exerciseType !== "piano-degree") return;
+          instructionsElement.textContent = pianoDegreeInstructions();
+          lastQuestionId = "";
+          makeQuestion();
+        });
       });
       intervalOptionsElement.addEventListener("change", (event) => {
         if (event.target.tagName !== "INPUT") return;

@@ -31,7 +31,8 @@ const ARPEGGIO_SLOTS_PER_MEASURE = 16;
 const ARPEGGIO_MEASURES_PER_CHORD = 4;
 const ARPEGGIO_DIRECTION_BIAS = 0.75;
 const ARPEGGIO_START_MAX_INTERVAL = 7;
-const ARPEGGIO_MIN_MIDI = 38;
+// Symmetric around middle C (60): 36 semitones below (C1) and above (B6).
+const ARPEGGIO_MIN_MIDI = 24;
 const ARPEGGIO_MAX_MIDI = 95;
 const ARPEGGIO_CHORDS = [
   { degree: 0, name: "I", intervals: [0, 2, 4] },
