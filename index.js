@@ -34,6 +34,7 @@ const ARPEGGIO_START_MAX_INTERVAL = 7;
 // Symmetric around middle C (60): 36 semitones below (C1) and above (B6).
 const ARPEGGIO_MIN_MIDI = 24;
 const ARPEGGIO_MAX_MIDI = 95;
+const ARPEGGIO_MEMORY_REVEAL_MS = 1000;
 const ARPEGGIO_CHORDS = [
   { degree: 0, name: "I", intervals: [0, 2, 4] },
   { degree: 1, name: "ii", intervals: [0, 2, 4] },
@@ -127,6 +128,17 @@ const state = {
   practice: {
     activeMs: 0,
     lastInputAt: null
+  },
+  memory: {
+    active: false,
+    phase: "idle",
+    measureIndex: 0,
+    completedMeasures: 0,
+    missedMeasures: 0,
+    attemptMissed: false,
+    previousEndMidi: null,
+    previousChordName: null,
+    revealTimer: null
   }
 };
 let renderedTargetNotes = new Map();
@@ -138,6 +150,7 @@ const els = {
   scoreLibrary: document.querySelector("#scoreLibrary"),
   importScore: document.querySelector("#importScore"),
   generateArpeggioScore: document.querySelector("#generateArpeggioScore"),
+  generateArpeggioMemory: document.querySelector("#generateArpeggioMemory"),
   arpeggioKey: document.querySelector("#arpeggioKey"),
   backToLibrary: document.querySelector("#backToLibrary"),
   restartPiece: document.querySelector("#restartPiece"),
@@ -355,6 +368,21 @@ function tempoForDuration(durationMs) {
 }
 
 function updatePerformanceDisplay() {
+  if (state.memory.active) {
+    setLiveStatLabel(els.timerValue, "Time");
+    setLiveStatLabel(els.accuracyValue, "Clean");
+    const elapsed = state.performanceStartedAt === null
+      ? state.performanceElapsedMs
+      : performance.now() - state.performanceStartedAt;
+    els.timerValue.textContent = formatDuration(elapsed);
+    const completed = state.memory.completedMeasures;
+    const missed = state.memory.missedMeasures;
+    els.accuracyValue.textContent = completed
+      ? `${Math.round(((completed - missed) / completed) * 100)}%`
+      : "—";
+    return;
+  }
+
   if (state.learn.active) {
     setLiveStatLabel(els.timerValue, "Practice");
     setLiveStatLabel(els.accuracyValue, "ETA");
@@ -477,6 +505,7 @@ function showLibrary() {
   stopPerformanceTimer();
   saveActivePracticeStats();
   if (state.learn.active) saveCurrentLearnProgress();
+  stopMemoryDrill();
   state.learn.active = false;
   state.fullScoreView = false;
   els.score.style.maxHeight = "";
@@ -1407,6 +1436,123 @@ function loadRandomArpeggioScore() {
   rebuildImportedPages(`${keyValue} arpeggio score ready`);
 }
 
+function clearMemoryRevealTimer() {
+  if (state.memory.revealTimer !== null) {
+    window.clearTimeout(state.memory.revealTimer);
+    state.memory.revealTimer = null;
+  }
+}
+
+function stopMemoryDrill() {
+  clearMemoryRevealTimer();
+  state.memory.active = false;
+  state.memory.phase = "idle";
+}
+
+function nextMemoryMeasureTargets() {
+  const choices = ARPEGGIO_CHORDS.filter((chord) => chord.name !== state.memory.previousChordName);
+  const chord = choices[Math.floor(Math.random() * choices.length)];
+  const measure = buildArpeggioMeasureTargets(state.keyValue, chord, state.memory.previousEndMidi);
+  state.memory.previousChordName = chord.name;
+  state.memory.previousEndMidi = measure.endMidi;
+  return measure.targets;
+}
+
+function beginMemoryReveal(message = "Watch the measure, then play it from memory", type = "") {
+  clearMemoryRevealTimer();
+  state.memory.phase = "reveal";
+  state.current = -1;
+  // drawVexScore only labels measures up to importedMeasureCount.
+  state.importedMeasureCount = state.memory.measureIndex + 1;
+  updateLabels();
+  drawScore();
+  setFeedback(message, type);
+  state.memory.revealTimer = window.setTimeout(() => {
+    state.memory.revealTimer = null;
+    if (!state.memory.active) return;
+    state.memory.phase = "play";
+    state.current = firstPlayableTargetIndex(state.notes);
+    updateLabels();
+    drawScore();
+    setFeedback("Play the measure from memory");
+  }, ARPEGGIO_MEMORY_REVEAL_MS);
+}
+
+function startMemoryMeasure() {
+  state.notes = nextMemoryMeasureTargets();
+  clearTargetRunState(state.notes);
+  state.memory.attemptMissed = false;
+  beginMemoryReveal();
+}
+
+function renderHiddenMemoryMeasure() {
+  renderedTargetNotes = new Map();
+  els.score.innerHTML = "";
+  els.score.style.minHeight = "100vh";
+
+  const panel = document.createElement("div");
+  panel.className = "grid min-h-screen items-center bg-white p-6 text-center";
+  panel.innerHTML = `
+    <div>
+      <p class="text-sm font-bold text-slate-500 uppercase">Measure hidden</p>
+      <h3 class="text-2xl">Measure ${state.memory.measureIndex + 1}</h3>
+      <p class="mt-3 text-xl">Play it from memory</p>
+      <p class="mt-3 text-sm text-slate-500">A wrong note shows the measure again.</p>
+    </div>
+  `;
+  els.score.append(panel);
+}
+
+function restartMemoryDrill() {
+  state.memory.measureIndex = 0;
+  state.memory.completedMeasures = 0;
+  state.memory.missedMeasures = 0;
+  state.memory.attemptMissed = false;
+  state.memory.previousEndMidi = null;
+  state.memory.previousChordName = null;
+  resetPerformance();
+  startMemoryMeasure();
+}
+
+function loadArpeggioMemoryExercise() {
+  const keyValue = els.arpeggioKey?.value || "C";
+  const displayTitle = `Arpeggio memory - ${keyValue} major`;
+  state.activeScore = {
+    id: `generated-arpeggio-memory:${keyValue}`,
+    file: "Generated",
+    title: "Arpeggio memory drill",
+    composer: "Generated practice",
+    displayTitle
+  };
+  loadPracticeForActiveScore();
+  state.learn.active = false;
+  state.fullScoreView = false;
+  state.importedPages = null;
+  state.importedPageIndex = -1;
+  state.importedSourceTargets = null;
+  state.memory.active = true;
+  state.memory.measureIndex = 0;
+  state.memory.completedMeasures = 0;
+  state.memory.missedMeasures = 0;
+  state.memory.attemptMissed = false;
+  state.memory.previousEndMidi = null;
+  state.memory.previousChordName = null;
+  state.keyValue = keyValue;
+  state.totalQuarterNoteBeats = 0;
+  state.beatsPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE;
+  state.beatValue = 16;
+  state.slotsPerQuarter = 4;
+  state.timeSignature = "4/4";
+  state.systemsPerPage = ARPEGGIO_SYSTEMS_PER_PAGE;
+  state.importedMeasureCount = 0;
+  els.pieceTitle.textContent = displayTitle;
+  els.score.style.maxHeight = "";
+  els.score.style.overflowY = "";
+  showPlayer();
+  resetPerformance();
+  startMemoryMeasure();
+}
+
 async function loadMusicXmlFile(file) {
   if (!file) return;
   showPlayer();
@@ -2067,6 +2213,19 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
 }
 
 function drawScore() {
+  if (state.memory.active) {
+    if (state.memory.phase === "play") {
+      renderHiddenMemoryMeasure();
+    } else {
+      drawVexScore(els.score, state.notes, -1, state.keyValue, {
+        systemCount: 1,
+        measureCount: 1,
+        measureNumberOffset: state.memory.measureIndex
+      });
+    }
+    updateNextSystemPreview();
+    return;
+  }
   if (state.learn.active) {
     const step = currentLearnStep();
     if (shouldHideLearnMusic()) {
@@ -2105,7 +2264,7 @@ function nextSystemPreviewData() {
 
 function updateNextSystemPreview() {
   const existingPreview = els.score.querySelector(".next-system-preview");
-  if (state.fullScoreView || state.learn.active) {
+  if (state.fullScoreView || state.learn.active || state.memory.active) {
     existingPreview?.remove();
     return;
   }
@@ -2137,7 +2296,9 @@ function updateNextSystemPreview() {
 
 function updateLabels() {
   const target = state.notes[state.current];
-  els.pageLabel.textContent = state.learn.active
+  els.pageLabel.textContent = state.memory.active
+    ? `Memory drill - Measure ${state.memory.measureIndex + 1}`
+    : state.learn.active
     ? `Learn score - Step ${Math.min(state.learn.stepIndex + 1, state.learn.steps.length)} of ${state.learn.steps.length}`
     : state.fullScoreView
     ? `Full score - ${state.importedMeasureCount} measures`
@@ -2249,7 +2410,55 @@ function handleLearnPlayedNote(midi) {
   finishLearnTarget(targetIndex);
 }
 
+function handleMemoryPlayedNote(midi) {
+  if (state.memory.phase !== "play") return;
+
+  const targetIndex = state.current;
+  const target = state.notes[targetIndex];
+  if (!target) return;
+
+  startPerformanceTimer();
+  const expectedMidi = requiredTargetNotes(target).map((note) => note.midi);
+  if (!expectedMidi.includes(midi)) {
+    state.missed += 1;
+    if (!state.memory.attemptMissed) {
+      state.memory.attemptMissed = true;
+      state.memory.missedMeasures += 1;
+    }
+    updatePerformanceDisplay();
+    beginMemoryReveal(`Heard ${midiToName(midi)} - watch again`, "bad");
+    return;
+  }
+
+  const isComplete = expectedMidi.every((noteMidi) => state.heldMidi.has(noteMidi));
+  if (!isComplete) {
+    const remaining = expectedMidi.filter((noteMidi) => !state.heldMidi.has(noteMidi)).length;
+    const label = remaining === 1 ? "note" : "notes";
+    setFeedback(`${remaining} ${label} left`, "good");
+    return;
+  }
+
+  state.correct += 1;
+  state.current = firstPlayableTargetIndex(state.notes, state.current + 1);
+  if (state.current >= state.notes.length) {
+    state.memory.completedMeasures += 1;
+    state.memory.measureIndex += 1;
+    updatePerformanceDisplay();
+    startMemoryMeasure();
+    return;
+  }
+
+  setFeedback("Correct", "good");
+  updateLabels();
+  updatePerformanceDisplay();
+}
+
 function handlePlayedNote(midi) {
+  if (state.memory.active) {
+    handleMemoryPlayedNote(midi);
+    return;
+  }
+
   if (state.learn.active) {
     handleLearnPlayedNote(midi);
     return;
@@ -2426,8 +2635,13 @@ els.midiInputs.addEventListener("change", selectMidiInput);
 els.musicXmlFile.addEventListener("change", () => loadMusicXmlFile(els.musicXmlFile.files[0]));
 els.importScore.addEventListener("click", () => els.musicXmlFile.click());
 els.generateArpeggioScore.addEventListener("click", loadRandomArpeggioScore);
+els.generateArpeggioMemory.addEventListener("click", loadArpeggioMemoryExercise);
 els.backToLibrary.addEventListener("click", showLibrary);
 els.restartPiece.addEventListener("click", () => {
+  if (state.memory.active) {
+    restartMemoryDrill();
+    return;
+  }
   if (state.learn.active) {
     state.learn.streak = 0;
     saveCurrentLearnProgress();
