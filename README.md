@@ -43,4 +43,4 @@ Timing starts with the first played note and ends when the final target in the p
 - MIDI input selection and octave-exact checking
 - Per-piece best/last completion time, accuracy, and tempo
 - Optional Space-bar input for testing without a MIDI keyboard
-- Random arpeggio score and an endless arpeggio memory drill (each measure is shown for three seconds, then played from memory)
+- Random arpeggio score and an endless arpeggio memory drill (4, 8, or 16 notes per measure; each measure is shown for a configurable time, then played from memory)

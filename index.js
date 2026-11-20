@@ -138,7 +138,15 @@ const state = {
     attemptMissed: false,
     previousEndMidi: null,
     previousChordName: null,
+    notesPerMeasure: ARPEGGIO_SLOTS_PER_MEASURE,
+    revealMs: ARPEGGIO_MEMORY_REVEAL_MS,
     revealTimer: null
+  },
+  setup: {
+    active: false,
+    kind: null,
+    notesPerMeasure: ARPEGGIO_SLOTS_PER_MEASURE,
+    revealSeconds: ARPEGGIO_MEMORY_REVEAL_MS / 1000
   }
 };
 let renderedTargetNotes = new Map();
@@ -508,6 +516,8 @@ function showLibrary() {
   stopMemoryDrill();
   state.learn.active = false;
   state.fullScoreView = false;
+  state.setup.active = false;
+  state.setup.kind = null;
   els.score.style.maxHeight = "";
   els.score.style.overflowY = "";
   document.body.classList.remove("player-active");
@@ -1252,11 +1262,31 @@ function generatedPitchForDiatonicOffset(keyValue, diatonicOffset) {
   return { midi, step, octave };
 }
 
-function arpeggioBeamsForSlot(slot) {
-  const slotInBeat = slot % 4;
+function normalizeArpeggioNotesPerMeasure(value) {
+  const numeric = Number(value);
+  return [4, 8, 16].includes(numeric) ? numeric : ARPEGGIO_SLOTS_PER_MEASURE;
+}
+
+function arpeggioNotesPerBeat(notesPerMeasure) {
+  return Math.max(1, Math.round(notesPerMeasure / 4));
+}
+
+function arpeggioSlotType(notesPerMeasure) {
+  const notesPerBeat = arpeggioNotesPerBeat(notesPerMeasure);
+  return notesPerBeat >= 4 ? "16th" : notesPerBeat >= 2 ? "eighth" : "quarter";
+}
+
+function arpeggioSlotDuration(notesPerMeasure) {
+  return 4 / notesPerMeasure;
+}
+
+function arpeggioBeamsForSlot(slot, notesPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE) {
+  const groupSize = arpeggioNotesPerBeat(notesPerMeasure);
+  if (groupSize === 1) return [];
+  const slotInBeat = slot % groupSize;
   return [{
     number: "1",
-    type: slotInBeat === 0 ? "begin" : slotInBeat === 3 ? "end" : "continue"
+    type: slotInBeat === 0 ? "begin" : slotInBeat === groupSize - 1 ? "end" : "continue"
   }];
 }
 
@@ -1289,14 +1319,15 @@ function closestOctavePitch(pitch, referenceMidi) {
   ));
 }
 
-function generatedStaffForBeat(pitches, slot) {
-  const beatStart = Math.floor(slot / 4) * 4;
-  const beatPitches = pitches.slice(beatStart, beatStart + 4);
+function generatedStaffForBeat(pitches, slot, notesPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE) {
+  const notesPerBeat = arpeggioNotesPerBeat(notesPerMeasure);
+  const beatStart = Math.floor(slot / notesPerBeat) * notesPerBeat;
+  const beatPitches = pitches.slice(beatStart, beatStart + notesPerBeat);
   const bassCount = beatPitches.filter((pitch) => generatedStaffForMidi(pitch.midi) === "bass").length;
   return bassCount > beatPitches.length / 2 ? "bass" : "treble";
 }
 
-function arpeggioTargetForPitch(pitch, slot, staff) {
+function arpeggioTargetForPitch(pitch, slot, staff, notesPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE) {
   return {
     midi: pitch.midi,
     step: pitch.step,
@@ -1305,11 +1336,11 @@ function arpeggioTargetForPitch(pitch, slot, staff) {
     keyAccidental: "",
     staff,
     voice: "1",
-    duration: 0.25,
-    type: "16th",
+    duration: arpeggioSlotDuration(notesPerMeasure),
+    type: arpeggioSlotType(notesPerMeasure),
     dots: 0,
     stemDirection: "up",
-    beams: arpeggioBeamsForSlot(slot)
+    beams: arpeggioBeamsForSlot(slot, notesPerMeasure)
   };
 }
 
@@ -1372,20 +1403,25 @@ function nextBiasedArpeggioPitch(pitches, currentPitch, biasDirection) {
   };
 }
 
-function buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi) {
+function buildArpeggioMeasureTargets(
+  keyValue,
+  chord,
+  previousArpeggioEndMidi,
+  notesPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE
+) {
   const baseRootPitch = generatedPitchForDiatonicOffset(keyValue, chord.degree);
   const anchorPitch = closestOctavePitch(baseRootPitch, previousArpeggioEndMidi);
   const pitchPool = chordPitchPoolForAnchor(keyValue, chord, anchorPitch);
   let biasDirection = Math.random() < 0.5 ? "up" : "down";
   const startPitch = chooseStartingChordPitch(pitchPool, previousArpeggioEndMidi) || anchorPitch;
   const pitches = [startPitch];
-  while (pitches.length < ARPEGGIO_SLOTS_PER_MEASURE) {
+  while (pitches.length < notesPerMeasure) {
     const next = nextBiasedArpeggioPitch(pitchPool, pitches[pitches.length - 1], biasDirection);
     biasDirection = next.biasDirection;
     pitches.push(next.pitch);
   }
   const targets = pitches.map((pitch, slot) => (
-    arpeggioTargetForPitch(pitch, slot, generatedStaffForBeat(pitches, slot))
+    arpeggioTargetForPitch(pitch, slot, generatedStaffForBeat(pitches, slot, notesPerMeasure), notesPerMeasure)
   ));
   return {
     endMidi: targets[targets.length - 1]?.midi ?? startPitch.midi,
@@ -1393,14 +1429,14 @@ function buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi) {
   };
 }
 
-function generateArpeggioTargets(keyValue) {
+function generateArpeggioTargets(keyValue, notesPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE) {
   const targets = [];
   let previousArpeggioEndMidi = null;
   const chordCount = Math.ceil(ARPEGGIO_MEASURE_COUNT / ARPEGGIO_MEASURES_PER_CHORD);
   chooseArpeggioChords(chordCount).forEach((chord) => {
     for (let repeat = 0; repeat < ARPEGGIO_MEASURES_PER_CHORD; repeat += 1) {
-      if (targets.length >= ARPEGGIO_MEASURE_COUNT * ARPEGGIO_SLOTS_PER_MEASURE) break;
-      const measure = buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi);
+      if (targets.length >= ARPEGGIO_MEASURE_COUNT * notesPerMeasure) break;
+      const measure = buildArpeggioMeasureTargets(keyValue, chord, previousArpeggioEndMidi, notesPerMeasure);
       targets.push(...measure.targets);
       previousArpeggioEndMidi = measure.endMidi;
     }
@@ -1408,8 +1444,95 @@ function generateArpeggioTargets(keyValue) {
   return targets;
 }
 
-function loadRandomArpeggioScore() {
+function arpeggioSetupTitle(kind) {
+  return kind === "memory" ? "Arpeggio memory drill" : "Random arpeggio score";
+}
+
+function renderArpeggioSetup(kind) {
+  const isMemory = kind === "memory";
+  els.score.innerHTML = "";
+  els.score.style.minHeight = "100vh";
+
+  const panel = document.createElement("div");
+  panel.className = "grid min-h-screen items-center bg-white p-6 text-center";
+  panel.innerHTML = `
+    <div style="display:grid;gap:1rem;width:min(24rem,100%);margin:0 auto;text-align:left">
+      <div>
+        <p class="text-sm font-bold text-slate-500 uppercase">${isMemory ? "Memory drill" : "Score"}</p>
+        <h3 class="text-2xl">${isMemory ? "Arpeggio memory setup" : "Arpeggio score setup"}</h3>
+      </div>
+      <label style="display:grid;gap:0.35rem">
+        <span class="text-sm font-semibold text-slate-500">Notes per measure</span>
+        <select id="arpeggioSetupNotes" class="border border-slate-300 bg-white px-3 py-2">
+          <option value="4">4 - quarter notes</option>
+          <option value="8">8 - eighth notes</option>
+          <option value="16">16 - sixteenth notes</option>
+        </select>
+      </label>
+      ${isMemory ? `
+      <label style="display:grid;gap:0.35rem">
+        <span class="text-sm font-semibold text-slate-500">Hide after (seconds)</span>
+        <input id="arpeggioSetupHide" class="border border-slate-300 bg-white px-3 py-2" type="number" min="1" max="30" step="1">
+      </label>` : ""}
+      <button id="arpeggioSetupStart" class="bg-teal-700 px-4 py-2 font-semibold text-white hover:bg-teal-800" type="button">Start</button>
+    </div>
+  `;
+  els.score.append(panel);
+
+  const notesSelect = panel.querySelector("#arpeggioSetupNotes");
+  notesSelect.value = String(state.setup.notesPerMeasure);
+  const hideInput = panel.querySelector("#arpeggioSetupHide");
+  if (hideInput) hideInput.value = String(state.setup.revealSeconds);
+
+  panel.querySelector("#arpeggioSetupStart").addEventListener("click", () => {
+    state.setup.notesPerMeasure = normalizeArpeggioNotesPerMeasure(notesSelect.value);
+    if (isMemory) {
+      const seconds = Number(hideInput.value);
+      state.setup.revealSeconds = Math.min(
+        30,
+        Math.max(1, Number.isFinite(seconds) ? Math.round(seconds) : 3)
+      );
+      loadArpeggioMemoryExercise({
+        notesPerMeasure: state.setup.notesPerMeasure,
+        revealMs: state.setup.revealSeconds * 1000
+      });
+    } else {
+      loadRandomArpeggioScore({ notesPerMeasure: state.setup.notesPerMeasure });
+    }
+  });
+}
+
+function openArpeggioSetup(kind) {
+  stopMemoryDrill();
+  state.learn.active = false;
+  state.fullScoreView = false;
+  state.setup.active = true;
+  state.setup.kind = kind;
+  state.importedPages = null;
+  state.importedPageIndex = -1;
+  state.importedSourceTargets = null;
+  state.importedMeasureCount = 0;
+  state.notes = [];
+  state.current = -1;
+  state.totalQuarterNoteBeats = 0;
+  els.pieceTitle.textContent = arpeggioSetupTitle(kind);
+  els.score.style.maxHeight = "";
+  els.score.style.overflowY = "";
+  showPlayer(false);
+  resetPerformance();
+  setFeedback("Choose options, then start");
+  updateLabels();
+  renderArpeggioSetup(kind);
+}
+
+function loadRandomArpeggioScore(options = {}) {
   const keyValue = els.arpeggioKey?.value || "C";
+  const notesPerMeasure = normalizeArpeggioNotesPerMeasure(
+    options.notesPerMeasure ?? state.setup.notesPerMeasure
+  );
+  state.setup.active = false;
+  state.setup.kind = null;
+  state.setup.notesPerMeasure = notesPerMeasure;
   const displayTitle = `Random arpeggio score - ${keyValue} major`;
   state.activeScore = {
     id: `generated-arpeggiated-chords:${keyValue}`,
@@ -1420,13 +1543,13 @@ function loadRandomArpeggioScore() {
   };
   loadPracticeForActiveScore();
   state.learn.active = false;
-  state.importedSourceTargets = generateArpeggioTargets(keyValue);
+  state.importedSourceTargets = generateArpeggioTargets(keyValue, notesPerMeasure);
   state.importedMeasureCount = ARPEGGIO_MEASURE_COUNT;
   state.keyValue = keyValue;
   state.totalQuarterNoteBeats = ARPEGGIO_MEASURE_COUNT * 4;
-  state.beatsPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE;
-  state.beatValue = 16;
-  state.slotsPerQuarter = 4;
+  state.beatsPerMeasure = notesPerMeasure;
+  state.beatValue = notesPerMeasure;
+  state.slotsPerQuarter = notesPerMeasure / 4;
   state.timeSignature = "4/4";
   state.systemsPerPage = ARPEGGIO_SYSTEMS_PER_PAGE;
   els.pieceTitle.textContent = displayTitle;
@@ -1452,10 +1575,21 @@ function stopMemoryDrill() {
 function nextMemoryMeasureTargets() {
   const choices = ARPEGGIO_CHORDS.filter((chord) => chord.name !== state.memory.previousChordName);
   const chord = choices[Math.floor(Math.random() * choices.length)];
-  const measure = buildArpeggioMeasureTargets(state.keyValue, chord, state.memory.previousEndMidi);
+  const measure = buildArpeggioMeasureTargets(
+    state.keyValue,
+    chord,
+    state.memory.previousEndMidi,
+    state.memory.notesPerMeasure
+  );
   state.memory.previousChordName = chord.name;
   state.memory.previousEndMidi = measure.endMidi;
   return measure.targets;
+}
+
+function normalizeMemoryRevealMs(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return ARPEGGIO_MEMORY_REVEAL_MS;
+  return Math.min(30000, Math.max(1000, Math.round(numeric)));
 }
 
 function beginMemoryReveal(message = "Watch the measure, then play it from memory", type = "") {
@@ -1475,7 +1609,7 @@ function beginMemoryReveal(message = "Watch the measure, then play it from memor
     updateLabels();
     drawScore();
     setFeedback("Play the measure from memory");
-  }, ARPEGGIO_MEMORY_REVEAL_MS);
+  }, state.memory.revealMs);
 }
 
 function startMemoryMeasure() {
@@ -1514,8 +1648,18 @@ function restartMemoryDrill() {
   startMemoryMeasure();
 }
 
-function loadArpeggioMemoryExercise() {
+function loadArpeggioMemoryExercise(options = {}) {
   const keyValue = els.arpeggioKey?.value || "C";
+  const notesPerMeasure = normalizeArpeggioNotesPerMeasure(
+    options.notesPerMeasure ?? state.setup.notesPerMeasure
+  );
+  const revealMs = normalizeMemoryRevealMs(
+    options.revealMs ?? state.setup.revealSeconds * 1000
+  );
+  state.setup.active = false;
+  state.setup.kind = null;
+  state.setup.notesPerMeasure = notesPerMeasure;
+  state.setup.revealSeconds = revealMs / 1000;
   const displayTitle = `Arpeggio memory - ${keyValue} major`;
   state.activeScore = {
     id: `generated-arpeggio-memory:${keyValue}`,
@@ -1537,11 +1681,13 @@ function loadArpeggioMemoryExercise() {
   state.memory.attemptMissed = false;
   state.memory.previousEndMidi = null;
   state.memory.previousChordName = null;
+  state.memory.notesPerMeasure = notesPerMeasure;
+  state.memory.revealMs = revealMs;
   state.keyValue = keyValue;
   state.totalQuarterNoteBeats = 0;
-  state.beatsPerMeasure = ARPEGGIO_SLOTS_PER_MEASURE;
-  state.beatValue = 16;
-  state.slotsPerQuarter = 4;
+  state.beatsPerMeasure = notesPerMeasure;
+  state.beatValue = notesPerMeasure;
+  state.slotsPerQuarter = notesPerMeasure / 4;
   state.timeSignature = "4/4";
   state.systemsPerPage = ARPEGGIO_SYSTEMS_PER_PAGE;
   state.importedMeasureCount = 0;
@@ -2213,6 +2359,7 @@ function drawVexScore(container, notes, currentIndex, keyValue, options = {}) {
 }
 
 function drawScore() {
+  if (state.setup.active) return;
   if (state.memory.active) {
     if (state.memory.phase === "play") {
       renderHiddenMemoryMeasure();
@@ -2296,7 +2443,9 @@ function updateNextSystemPreview() {
 
 function updateLabels() {
   const target = state.notes[state.current];
-  els.pageLabel.textContent = state.memory.active
+  els.pageLabel.textContent = state.setup.active
+    ? (state.setup.kind === "memory" ? "Memory drill setup" : "Arpeggio score setup")
+    : state.memory.active
     ? `Memory drill - Measure ${state.memory.measureIndex + 1}`
     : state.learn.active
     ? `Learn score - Step ${Math.min(state.learn.stepIndex + 1, state.learn.steps.length)} of ${state.learn.steps.length}`
@@ -2634,10 +2783,14 @@ els.connectMidi.addEventListener("click", connectMidi);
 els.midiInputs.addEventListener("change", selectMidiInput);
 els.musicXmlFile.addEventListener("change", () => loadMusicXmlFile(els.musicXmlFile.files[0]));
 els.importScore.addEventListener("click", () => els.musicXmlFile.click());
-els.generateArpeggioScore.addEventListener("click", loadRandomArpeggioScore);
-els.generateArpeggioMemory.addEventListener("click", loadArpeggioMemoryExercise);
+els.generateArpeggioScore.addEventListener("click", () => openArpeggioSetup("score"));
+els.generateArpeggioMemory.addEventListener("click", () => openArpeggioSetup("memory"));
 els.backToLibrary.addEventListener("click", showLibrary);
 els.restartPiece.addEventListener("click", () => {
+  if (state.setup.active) {
+    renderArpeggioSetup(state.setup.kind);
+    return;
+  }
   if (state.memory.active) {
     restartMemoryDrill();
     return;
