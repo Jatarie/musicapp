@@ -35,6 +35,8 @@ const ARPEGGIO_START_MAX_INTERVAL = 7;
 const ARPEGGIO_MIN_MIDI = 24;
 const ARPEGGIO_MAX_MIDI = 95;
 const ARPEGGIO_MEMORY_REVEAL_MS = 3000;
+// Keeps ledger lines for the lowest generated bass notes (C1) inside the SVG.
+const ARPEGGIO_MEMORY_SCORE_HEIGHT = 430;
 const ARPEGGIO_CHORDS = [
   { degree: 0, name: "I", intervals: [0, 2, 4] },
   { degree: 1, name: "ii", intervals: [0, 2, 4] },
@@ -2367,6 +2369,7 @@ function drawScore() {
       drawVexScore(els.score, state.notes, -1, state.keyValue, {
         systemCount: 1,
         measureCount: 1,
+        height: ARPEGGIO_MEMORY_SCORE_HEIGHT,
         measureNumberOffset: state.memory.measureIndex
       });
     }
