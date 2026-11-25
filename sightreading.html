@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sightline — Sight-Reading Trainer</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --paper: #fffdf8;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --border-strong: #cbd5e1;
+        --accent: #0f766e;
+        --accent-hover: #115e59;
+        --accent-soft: #f0fdfa;
+        --good: #15803d;
+        --bad: #b91c1c;
+        --amber: #d97706;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      body.focus-mode {
+        background: var(--surface);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover { text-decoration: underline; }
+
+      button, select, input {
+        font: inherit;
+      }
+
+      .app-shell {
+        max-width: 82rem;
+        margin: 0 auto;
+        padding: 1.25rem 1.5rem 2.5rem;
+      }
+
+      body.focus-mode .app-shell {
+        max-width: none;
+        padding: 0;
+      }
+
+      /* Topbar */
+      .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      body.focus-mode .topbar {
+        display: none;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+
+      .brand-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        letter-spacing: -0.02em;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 0.75rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .midi-panel {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .status-pill {
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        padding: 0.45rem 0.75rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .status-pill.connected {
+        border-color: #16a34a;
+        color: var(--good);
+        background: #f0fdf4;
+        font-weight: 600;
+      }
+
+      select, input[type="number"] {
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--ink);
+        padding: 0.45rem 0.65rem;
+        font-size: 0.9rem;
+      }
+
+      .btn {
+        border: 1px solid transparent;
+        background: var(--accent);
+        color: #fff;
+        padding: 0.5rem 0.95rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease;
+      }
+
+      .btn:hover { background: var(--accent-hover); }
+
+      .btn.secondary {
+        background: #e2e8f0;
+        color: var(--ink);
+      }
+      .btn.secondary:hover { background: #cbd5e1; }
+
+      .btn.ghost {
+        background: var(--surface);
+        color: var(--ink);
+        border-color: var(--border-strong);
+      }
+      .btn.ghost:hover { background: #f1f5f9; }
+
+      .btn.active-toggle {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      /* Profile Banner */
+      .profile-banner {
+        display: grid;
+        grid-template-columns: 1.4fr repeat(4, minmax(6rem, 1fr)) auto;
+        gap: 1rem;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .rank-badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid #99f6e4;
+        padding: 0.18rem 0.5rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .profile-title {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+
+      .profile-sub {
+        margin: 0.15rem 0 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .stat-block dt {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      .stat-block dd {
+        margin: 0.15rem 0 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      /* Settings Bar */
+      .settings-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 0.85rem 1.15rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 0.9rem 1.15rem;
+        margin-bottom: 1.35rem;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .field label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+
+      .checkbox-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        margin-left: auto;
+        padding-bottom: 0.35rem;
+      }
+
+      .checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.88rem;
+        color: var(--ink);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      /* Level Grid */
+      .section-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: 0 0 0.75rem;
+      }
+
+      .section-heading h2 {
+        margin: 0;
+        font-size: 1.15rem;
+      }
+
+      .section-heading span {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .level-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.75rem;
+      }
+
+      .level-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 1rem 1.05rem;
+        cursor: pointer;
+        text-align: left;
+        transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.12s ease;
+      }
+
+      .level-card:hover {
+        border-color: var(--accent);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+        transform: translateY(-1px);
+      }
+
+      .level-card.recommended {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.25);
+      }
+
+      .level-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+
+      .level-num {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--accent);
+      }
+
+      .rec-pill {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--accent);
+        color: #fff;
+        padding: 0.15rem 0.45rem;
+      }
+
+      .level-card h3 {
+        margin: 0;
+        font-size: 1.08rem;
+      }
+
+      .level-card p {
+        margin: 0;
+        font-size: 0.84rem;
+        color: var(--muted);
+        line-height: 1.38;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+      }
+
+      .tag {
+        font-size: 0.72rem;
+        color: #334155;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        padding: 0.12rem 0.42rem;
+      }
+
+      .level-card-footer {
+        margin-top: auto;
+        padding-top: 0.6rem;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .grade-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.6rem;
+        height: 1.5rem;
+        padding: 0 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #fff;
+        background: #94a3b8;
+      }
+
+      .grade-S { background: #b45309; }
+      .grade-A { background: #15803d; }
+      .grade-B { background: #0f766e; }
+      .grade-C { background: #475569; }
+      .grade-D { background: #b91c1c; }
+
+      .stars {
+        color: #d97706;
+        letter-spacing: 0.06em;
+      }
+
+      /* Recent History */
+      .history-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 1rem 1.15rem;
+      }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.86rem;
+      }
+
+      .history-table th {
+        text-align: left;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        padding: 0.45rem 0.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .history-table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      /* Player View */
+      .player-view {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 1rem;
+      }
+
+      body.focus-mode .player-view {
+        border: 0;
+        min-height: 100vh;
+        padding: 0.5rem 0.75rem;
+      }
+
+      .player-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 0.85rem;
+      }
+
+      .player-title {
+        min-width: 12rem;
+        flex: 1;
+      }
+
+      .player-kicker {
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--accent);
+      }
+
+      .player-title h2 {
+        margin: 0.1rem 0 0;
+        font-size: 1.15rem;
+      }
+
+      .hud-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.1rem;
+        align-items: center;
+      }
+
+      .hud-stat {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+
+      .hud-stat strong {
+        display: block;
+        font-size: 1.05rem;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .hud-stat.streak-hot strong {
+        color: var(--amber);
+      }
+
+      .feedback {
+        min-width: 11.5rem;
+        padding: 0.5rem 0.85rem;
+        text-align: center;
+        font-size: 0.88rem;
+        font-weight: 600;
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      .feedback.good { background: var(--good); color: #fff; }
+      .feedback.bad { background: var(--bad); color: #fff; }
+      .feedback.info { background: var(--accent); color: #fff; }
+
+      .score-box {
+        position: relative;
+        min-height: 22rem;
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        background: var(--paper);
+      }
+
+      .score-box svg {
+        display: block;
+        width: 100%;
+        min-width: 58rem;
+        height: auto;
+      }
+
+      .next-system-preview {
+        pointer-events: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        z-index: 3;
+        overflow: hidden;
+        background: var(--paper);
+        border-bottom: 2px solid var(--border-strong);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      }
+
+      .player-footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.85rem;
+      }
+
+      .keyboard-hint {
+        font-size: 0.84rem;
+        color: var(--muted);
+        margin-left: 0.35rem;
+      }
+
+      /* Results Modal / View */
+      .results-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: rgba(15, 23, 42, 0.55);
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+      }
+
+      .results-backdrop[hidden] {
+        display: none;
+      }
+
+      .results-card {
+        width: min(100%, 36rem);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        box-shadow: 0 24px 55px rgba(15, 23, 42, 0.25);
+        padding: 1.65rem;
+      }
+
+      .results-header {
+        display: flex;
+        align-items: center;
+        gap: 1.15rem;
+        padding-bottom: 1.1rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .big-grade {
+        width: 4.5rem;
+        height: 4.5rem;
+        display: grid;
+        place-items: center;
+        font-size: 2.35rem;
+        font-weight: 800;
+        color: #fff;
+        flex-shrink: 0;
+      }
+
+      .results-header h2 {
+        margin: 0;
+        font-size: 1.45rem;
+      }
+
+      .results-sub {
+        margin: 0.2rem 0 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .new-best-badge {
+        display: inline-block;
+        margin-left: 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+        padding: 0.1rem 0.4rem;
+        vertical-align: middle;
+      }
+
+      .results-score-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        padding: 1rem 0 0.75rem;
+      }
+
+      .results-total-score {
+        font-size: 2rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .rating-delta {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: var(--good);
+      }
+
+      .rating-delta.negative {
+        color: var(--bad);
+      }
+
+      .results-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        padding: 0.85rem 0;
+        border-top: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .results-metric dt {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      .results-metric dd {
+        margin: 0.15rem 0 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+
+      .score-breakdown {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.2rem;
+        margin: 0.75rem 0 1.25rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .results-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+
+      @media (max-width: 900px) {
+        .profile-banner {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .checkbox-group {
+          margin-left: 0;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .app-shell { padding: 0.75rem; }
+        .results-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-row">
+            <h1>Sightline Sight-Reading</h1>
+            <nav class="nav-links" aria-label="App navigation">
+              <a href="index.html">Score Library</a>
+              <a href="exercises.html">Theory Exercises</a>
+            </nav>
+          </div>
+        </div>
+        <div class="midi-panel">
+          <div class="status-pill" id="midiStatus">MIDI disconnected</div>
+          <select id="midiInputs" aria-label="MIDI input devices">
+            <option value="">No MIDI inputs</option>
+          </select>
+          <button class="btn" id="connectMidi" type="button">Connect MIDI</button>
+        </div>
+      </header>
+
+      <!-- LOBBY / LEVEL SELECT -->
+      <section id="lobbyView" aria-labelledby="levelsTitle">
+        <div class="profile-banner" aria-label="Sight-reading profile">
+          <div>
+            <span class="rank-badge" id="profileRank">Novice I</span>
+            <h2 class="profile-title"><span id="profileRating">100</span> Rating</h2>
+            <p class="profile-sub" id="profileXp">0 XP · Recommended: Level 1</p>
+          </div>
+          <dl class="stat-block" style="margin:0">
+            <dt>Completed</dt>
+            <dd id="profilePieces">0</dd>
+          </dl>
+          <dl class="stat-block" style="margin:0">
+            <dt>Avg Accuracy</dt>
+            <dd id="profileAvgAcc">—</dd>
+          </dl>
+          <dl class="stat-block" style="margin:0">
+            <dt>Best Streak</dt>
+            <dd id="profileBestStreak">0</dd>
+          </dl>
+          <dl class="stat-block" style="margin:0">
+            <dt>Highest Grade</dt>
+            <dd id="profileHighestGrade">—</dd>
+          </dl>
+          <button class="btn ghost" id="resetProgress" type="button" title="Reset sight-reading stats">Reset stats</button>
+        </div>
+
+        <div class="settings-bar" aria-label="Generation options">
+          <div class="field">
+            <label for="optMeasures">Length</label>
+            <select id="optMeasures">
+              <option value="8" selected>8 bars (1 page)</option>
+              <option value="16">16 bars (2 pages)</option>
+              <option value="32">32 bars (4 pages)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="optSource">Music Source</label>
+            <select id="optSource">
+              <option value="mixed" selected>Mixed (Musical + Classical)</option>
+              <option value="procedural">Musical Generator</option>
+              <option value="repertoire">Classical Fragments</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="optKey">Starting Key</label>
+            <select id="optKey">
+              <option value="auto" selected>Auto (level appropriate)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="optHand">1-Hand Clef (Lv. 1–2)</label>
+            <select id="optHand">
+              <option value="treble" selected>Right Hand (Treble)</option>
+              <option value="bass">Left Hand (Bass)</option>
+            </select>
+          </div>
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input id="optShowLabels" type="checkbox" checked>
+              Show phrase &amp; key cues
+            </label>
+            <label class="checkbox-label">
+              <input id="optShowChords" type="checkbox">
+              Show Roman numerals
+            </label>
+            <label class="checkbox-label">
+              <input id="optSynthAudio" type="checkbox">
+              Synth audio
+            </label>
+          </div>
+        </div>
+
+        <div class="section-heading">
+          <h2 id="levelsTitle">Choose a difficulty level</h2>
+          <span>Click any level to generate a fresh musical sight-reading score</span>
+        </div>
+
+        <div class="level-grid" id="levelGrid"></div>
+
+        <div class="history-card" id="historySection" hidden>
+          <div class="section-heading" style="margin-bottom:0.5rem">
+            <h2>Recent sessions</h2>
+            <span id="historyCount"></span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Piece</th>
+                  <th>Grade</th>
+                  <th>Score</th>
+                  <th>Accuracy</th>
+                  <th>Clean Bars</th>
+                  <th>Tempo</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- PLAYER VIEW -->
+      <section class="player-view" id="playerView" hidden aria-label="Sight-reading player">
+        <div class="player-toolbar">
+          <button class="btn secondary" id="backToLobby" type="button">← Levels</button>
+          <div class="player-title">
+            <p class="player-kicker" id="playerKicker">Level 1 · Page 1 of 1</p>
+            <h2 id="pieceTitle">Sight-Reading Score</h2>
+          </div>
+          <div class="hud-stats" aria-label="Live performance statistics">
+            <span class="hud-stat"><strong id="hudScore">0</strong> Score</span>
+            <span class="hud-stat" id="hudStreakWrap"><strong id="hudStreak">0 · x1.0</strong> Streak</span>
+            <span class="hud-stat"><strong id="hudAccuracy">—</strong> Accuracy</span>
+            <span class="hud-stat"><strong id="hudTimer">0:00.0</strong> Time</span>
+            <span class="hud-stat"><strong id="hudProgress">Bar 1 / 8</strong> Progress</span>
+          </div>
+          <div class="feedback" id="feedback">Play the highlighted note</div>
+        </div>
+
+        <div id="score" class="score-box" role="img" aria-label="Sight-reading sheet music"></div>
+
+        <div class="player-footer">
+          <button class="btn" id="newPieceBtn" type="button">New piece</button>
+          <button class="btn secondary" id="retryPieceBtn" type="button">Retry piece</button>
+          <button class="btn ghost" id="demoModeBtn" type="button">Use computer keys</button>
+          <button class="btn ghost" id="synthToggleBtn" type="button">Synth audio: Off</button>
+          <button class="btn ghost" id="focusModeBtn" type="button">Focus view</button>
+          <span class="keyboard-hint" id="keyboardHint" hidden>Press <strong>Space</strong> to play the highlighted note/chord (<strong>X</strong> simulates a wrong note).</span>
+        </div>
+      </section>
+
+      <!-- RESULTS MODAL -->
+      <div class="results-backdrop" id="resultsModal" hidden role="dialog" aria-modal="true" aria-labelledby="resultsTitle">
+        <div class="results-card">
+          <div class="results-header">
+            <div class="big-grade grade-A" id="resGrade">A</div>
+            <div>
+              <h2 id="resultsTitle">Piece Complete!</h2>
+              <p class="results-sub" id="resSubtitle">Level 1 · Excellent</p>
+            </div>
+          </div>
+
+          <div class="results-score-row">
+            <div>
+              <span class="results-total-score" id="resScore">0</span>
+              <span style="color:var(--muted);font-weight:600"> pts</span>
+              <span class="new-best-badge" id="resNewBest" hidden>New Best</span>
+            </div>
+            <div class="rating-delta" id="resRatingDelta">+25 Rating</div>
+          </div>
+
+          <dl class="results-grid">
+            <div class="results-metric"><dt>Note Accuracy</dt><dd id="resNoteAcc">100%</dd></div>
+            <div class="results-metric"><dt>Clean Measures</dt><dd id="resCleanBars">8 / 8</dd></div>
+            <div class="results-metric"><dt>Best Streak</dt><dd id="resBestStreak">32</dd></div>
+            <div class="results-metric"><dt>Tempo</dt><dd id="resBpm">76 BPM</dd></div>
+            <div class="results-metric"><dt>Time</dt><dd id="resTime">0:24.1</dd></div>
+            <div class="results-metric"><dt>Mistakes</dt><dd id="resMistakes">0</dd></div>
+          </dl>
+
+          <div class="score-breakdown" id="resBreakdown"></div>
+
+          <div class="results-actions">
+            <button class="btn" id="resNextPiece" type="button">Next piece (same level)</button>
+            <button class="btn" id="resLevelUp" type="button" hidden>Advance to next level →</button>
+            <button class="btn secondary" id="resRetry" type="button">Retry piece</button>
+            <button class="btn ghost" id="resBackLobby" type="button">All levels</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow-core.js"></script>
+    <script src="notation.js"></script>
+    <script src="sightreading-engine.js"></script>
+    <script src="sightreading-renderer.js"></script>
+    <script src="sightreading.js"></script>
+  </body>
+</html>
