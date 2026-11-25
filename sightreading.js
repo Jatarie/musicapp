@@ -34,6 +34,7 @@
     optShowLabels: document.getElementById("optShowLabels"),
     optShowChords: document.getElementById("optShowChords"),
     optSynthAudio: document.getElementById("optSynthAudio"),
+    optDemoMode: document.getElementById("optDemoMode"),
 
     levelGrid: document.getElementById("levelGrid"),
     historySection: document.getElementById("historySection"),
@@ -123,7 +124,8 @@
       handMode: "treble",
       showLabels: true,
       showChords: false,
-      synthAudio: false
+      synthAudio: false,
+      demoMode: false
     };
   }
 
@@ -278,6 +280,11 @@
     els.optShowLabels.checked = Boolean(state.settings.showLabels);
     els.optShowChords.checked = Boolean(state.settings.showChords);
     els.optSynthAudio.checked = Boolean(state.settings.synthAudio);
+    if (els.optDemoMode) els.optDemoMode.checked = Boolean(state.settings.demoMode);
+    state.demoMode = Boolean(state.settings.demoMode);
+    els.keyboardHint.hidden = !state.demoMode;
+    els.demoModeBtn.textContent = state.demoMode ? "Disable computer keys" : "Use computer keys";
+    els.demoModeBtn.classList.toggle("active-toggle", state.demoMode);
     els.synthToggleBtn.textContent = `Synth audio: ${state.settings.synthAudio ? "On" : "Off"}`;
     els.synthToggleBtn.classList.toggle("active-toggle", Boolean(state.settings.synthAudio));
   }
@@ -363,7 +370,7 @@
   function showLobby() {
     stopTimer();
     els.resultsModal.hidden = true;
-    setFocusMode(false);
+    document.body.classList.remove("player-active");
     els.playerView.hidden = true;
     els.lobbyView.hidden = false;
     renderProfileBanner();
@@ -375,15 +382,13 @@
     els.resultsModal.hidden = true;
     els.lobbyView.hidden = true;
     els.playerView.hidden = false;
-  }
-
-  function setFocusMode(enabled) {
-    state.focusMode = enabled;
-    document.body.classList.toggle("focus-mode", enabled);
-    els.focusModeBtn.textContent = enabled ? "Exit focus view" : "Focus view";
-    els.focusModeBtn.classList.toggle("active-toggle", enabled);
-    if (state.activeScore && !els.playerView.hidden) {
-      renderCurrentPage();
+    document.body.classList.add("player-active");
+    if (!history.state || history.state.view !== "player") {
+      try {
+        history.pushState({ view: "player" }, "");
+      } catch {
+        // Ignore history restrictions on file:// origins
+      }
     }
   }
 
@@ -487,7 +492,8 @@
       currentGlobalIndex: state.currentGlobalIndex,
       showLabels: state.settings.showLabels,
       showChords: state.settings.showChords,
-      prevPageLastMeasure
+      prevPageLastMeasure,
+      fitViewport: true
     });
 
     updateNextSystemPreview();
@@ -522,9 +528,14 @@
     const previewMeasures = score.measures.slice(nextPageStart, nextPageStart + MEASURES_PER_SYSTEM);
     if (!previewMeasures.length) return;
 
-    const previewHeight = score.staffMode === "grand" ? 335 : 205;
+    const mainSvg = els.score.querySelector(":scope > svg");
+    const vbParts = (mainSvg?.getAttribute("viewBox") || "").split(/\s+/).map(Number);
+    const mainLogicalWidth = Number.isFinite(vbParts[2]) && vbParts[2] > 0 ? vbParts[2] : 900;
+    const mainLogicalHeight = Number.isFinite(vbParts[3]) && vbParts[3] > 0 ? vbParts[3] : 1000;
+    const previewHeight = score.staffMode === "grand" ? 260 : 155;
     const preview = document.createElement("div");
     preview.className = "next-system-preview";
+    preview.style.height = `${Math.min(40, (previewHeight / mainLogicalHeight) * 100)}%`;
     preview.setAttribute("aria-label", "Preview of the first system on the next page");
     els.score.append(preview);
 
@@ -532,7 +543,9 @@
       staffMode: score.staffMode,
       measuresPerSystem: MEASURES_PER_SYSTEM,
       systemCount: 1,
+      logicalWidth: mainLogicalWidth,
       height: previewHeight,
+      fitViewport: true,
       currentGlobalIndex: -1,
       showLabels: state.settings.showLabels,
       showChords: state.settings.showChords,
@@ -921,6 +934,11 @@
   }
 
   function handleComputerKey(event) {
+    if (event.code === "Escape" && !els.playerView.hidden) {
+      event.preventDefault();
+      showLobby();
+      return;
+    }
     if (event.repeat || !state.demoMode || els.playerView.hidden || !els.resultsModal.hidden) return;
     if (!state.activeScore || state.completed || state.currentGlobalIndex < 0) return;
 
@@ -962,6 +980,7 @@
     state.settings.showLabels = els.optShowLabels.checked;
     state.settings.showChords = els.optShowChords.checked;
     state.settings.synthAudio = els.optSynthAudio.checked;
+    if (els.optDemoMode) state.settings.demoMode = els.optDemoMode.checked;
     saveSettings(state.settings);
     syncSettingsUI();
   };
@@ -973,8 +992,9 @@
     els.optHand,
     els.optShowLabels,
     els.optShowChords,
-    els.optSynthAudio
-  ].forEach((el) => el.addEventListener("change", onSettingChange));
+    els.optSynthAudio,
+    els.optDemoMode
+  ].filter(Boolean).forEach((el) => el.addEventListener("change", onSettingChange));
 
   els.resetProgress.addEventListener("click", () => {
     if (!window.confirm("Reset all sight-reading scores, rating, and history?")) return;
@@ -996,7 +1016,12 @@
     saveSettings(state.settings);
     syncSettingsUI();
   });
-  els.focusModeBtn.addEventListener("click", () => setFocusMode(!state.focusMode));
+
+  window.addEventListener("popstate", () => {
+    if (!els.playerView.hidden) {
+      showLobby();
+    }
+  });
 
   els.resNextPiece.addEventListener("click", () => {
     if (state.activeScore) startNewPiece(state.activeScore.level);

@@ -32,8 +32,10 @@
         color: var(--ink);
       }
 
-      body.focus-mode {
-        background: var(--surface);
+      body.player-active {
+        overflow: hidden;
+        height: 100dvh;
+        background: var(--paper);
       }
 
       a {
@@ -52,9 +54,12 @@
         padding: 1.25rem 1.5rem 2.5rem;
       }
 
-      body.focus-mode .app-shell {
+      body.player-active .app-shell {
         max-width: none;
+        width: 100vw;
+        height: 100dvh;
         padding: 0;
+        margin: 0;
       }
 
       /* Topbar */
@@ -69,7 +74,9 @@
         border-bottom: 1px solid var(--border);
       }
 
-      body.focus-mode .topbar {
+      body.player-active .topbar,
+      body.player-active .player-toolbar,
+      body.player-active .player-footer {
         display: none;
       }
 
@@ -427,10 +434,12 @@
         padding: 1rem;
       }
 
-      body.focus-mode .player-view {
+      body.player-active .player-view {
+        width: 100%;
+        height: 100%;
         border: 0;
-        min-height: 100vh;
-        padding: 0.5rem 0.75rem;
+        padding: 0;
+        background: var(--paper);
       }
 
       .player-toolbar {
@@ -502,16 +511,22 @@
       .score-box {
         position: relative;
         min-height: 12rem;
-        overflow-x: hidden;
+        overflow: hidden;
         border: 1px solid var(--border);
         background: var(--paper);
       }
 
-      .score-box svg {
+      body.player-active .score-box {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        border: 0;
+      }
+
+      .score-box > svg {
         display: block;
         width: 100%;
-        max-width: 100%;
-        height: auto;
+        height: 100%;
       }
 
       .next-system-preview {
@@ -525,6 +540,12 @@
         background: var(--paper);
         border-bottom: 2px solid var(--border-strong);
         box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      }
+
+      .next-system-preview > svg {
+        display: block;
+        width: 100%;
+        height: 100%;
       }
 
       .player-footer {
@@ -779,6 +800,10 @@
             <label class="checkbox-label">
               <input id="optSynthAudio" type="checkbox">
               Synth audio
+            </label>
+            <label class="checkbox-label">
+              <input id="optDemoMode" type="checkbox">
+              Computer keys (Space)
             </label>
           </div>
         </div>

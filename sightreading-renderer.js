@@ -593,19 +593,41 @@
     const prevPageLastMeasure = options.prevPageLastMeasure || null;
 
     const renderedTargetNotes = new Map();
-    const containerWidth = container.clientWidth || 800;
-    const minEngravingWidth = measuresPerSystem === 1 ? 420 : 800;
-    const width = Math.max(containerWidth, minEngravingWidth);
     const isGrand = staffMode === "grand";
-    const systemSpacing = isGrand ? 305 : 175;
-    const topMargin = isGrand ? 64 : 58;
-    const height = options.height || ((systemCount * systemSpacing) + (isGrand ? 70 : 50));
-    const pageMargin = containerWidth < 860 ? 12 : 18;
+    const topMargin = 42;
+    const bassOffset = 104;
+    const systemSpacing = isGrand ? 258 : 148;
+    const defaultHeight = topMargin
+      + ((systemCount - 1) * systemSpacing)
+      + (isGrand ? (bassOffset + 84) : 84)
+      + 26;
+    const height = options.height || defaultHeight;
+
+    const containerWidth = container.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 800) || 800;
+    const containerHeight = container.clientHeight || (typeof window !== "undefined" ? window.innerHeight : height) || height;
+    const minEngravingWidth = measuresPerSystem === 1 ? 420 : 800;
+    const maxEngravingWidth = measuresPerSystem === 1 ? 760 : 1380;
+
+    let width;
+    if (Number.isFinite(options.logicalWidth)) {
+      width = options.logicalWidth;
+    } else if (options.fitViewport) {
+      const aspectWidth = Math.round(height * (containerWidth / Math.max(containerHeight, 1)));
+      width = Math.max(minEngravingWidth, Math.min(maxEngravingWidth, aspectWidth));
+    } else {
+      width = Math.max(containerWidth, minEngravingWidth);
+    }
+
+    const pageMargin = width < 880 ? 12 : 18;
     const systemWidth = width - (pageMargin * 2);
 
     container.innerHTML = "";
-    const displayScale = Math.min(1, containerWidth / width);
-    container.style.minHeight = `${Math.round(height * displayScale)}px`;
+    if (options.fitViewport) {
+      container.style.minHeight = "";
+    } else {
+      const displayScale = Math.min(1, containerWidth / width);
+      container.style.minHeight = `${Math.round(height * displayScale)}px`;
+    }
 
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, height);
@@ -613,7 +635,7 @@
     const svg = container.querySelector ? container.querySelector("svg") : null;
     if (svg) {
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
+      svg.setAttribute("preserveAspectRatio", options.fitViewport ? "xMidYMid meet" : "xMidYMin meet");
       svg.removeAttribute("width");
       svg.removeAttribute("height");
     }
@@ -632,7 +654,7 @@
 
       const baseY = topMargin + (systemIndex * systemSpacing);
       const trebleY = baseY;
-      const bassY = isGrand ? baseY + 115 : baseY;
+      const bassY = isGrand ? baseY + bassOffset : baseY;
 
       // Pre-compute prefix symbol widths for every measure in this system
       let simPrev = prevMeasure;
