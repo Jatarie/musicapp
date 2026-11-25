@@ -525,7 +525,6 @@
     const previewHeight = score.staffMode === "grand" ? 335 : 205;
     const preview = document.createElement("div");
     preview.className = "next-system-preview";
-    preview.style.height = `${previewHeight}px`;
     preview.setAttribute("aria-label", "Preview of the first system on the next page");
     els.score.append(preview);
 

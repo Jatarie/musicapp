@@ -593,19 +593,30 @@
     const prevPageLastMeasure = options.prevPageLastMeasure || null;
 
     const renderedTargetNotes = new Map();
-    const width = Math.max(container.clientWidth || 960, 960);
+    const containerWidth = container.clientWidth || 800;
+    const minEngravingWidth = measuresPerSystem === 1 ? 420 : 800;
+    const width = Math.max(containerWidth, minEngravingWidth);
     const isGrand = staffMode === "grand";
     const systemSpacing = isGrand ? 305 : 175;
     const topMargin = isGrand ? 64 : 58;
     const height = options.height || ((systemCount * systemSpacing) + (isGrand ? 70 : 50));
-    const pageMargin = 18;
+    const pageMargin = containerWidth < 860 ? 12 : 18;
     const systemWidth = width - (pageMargin * 2);
 
     container.innerHTML = "";
-    container.style.minHeight = `${height}px`;
+    const displayScale = Math.min(1, containerWidth / width);
+    container.style.minHeight = `${Math.round(height * displayScale)}px`;
 
     const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
     renderer.resize(width, height);
+
+    const svg = container.querySelector ? container.querySelector("svg") : null;
+    if (svg) {
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
+      svg.removeAttribute("width");
+      svg.removeAttribute("height");
+    }
 
     const context = renderer.getContext();
     context.setBackgroundFillStyle("#fffdf8");

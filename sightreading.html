@@ -501,8 +501,8 @@
 
       .score-box {
         position: relative;
-        min-height: 22rem;
-        overflow-x: auto;
+        min-height: 12rem;
+        overflow-x: hidden;
         border: 1px solid var(--border);
         background: var(--paper);
       }
@@ -510,7 +510,7 @@
       .score-box svg {
         display: block;
         width: 100%;
-        min-width: 58rem;
+        max-width: 100%;
         height: auto;
       }
 
@@ -669,6 +669,12 @@
       }
 
       @media (max-width: 900px) {
+        .app-shell {
+          padding: 0.75rem 0.65rem 1.5rem;
+        }
+        .player-view {
+          padding: 0.65rem;
+        }
         .profile-banner {
           grid-template-columns: repeat(2, 1fr);
         }
