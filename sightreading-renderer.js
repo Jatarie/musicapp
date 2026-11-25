@@ -320,6 +320,82 @@
     pendingTies.forEach((endpoint) => drawTie(endpoint, null));
   }
 
+  function computeBeamGroupStemDirections(measureTargets, staff, voiceId, slotsPerQuarter) {
+    // Middle staff line diatonic position: B4 (34) for treble, D3 (22) for bass.
+    const middleLinePos = staff === "bass" ? diatonicPosition("D", 3) : diatonicPosition("B", 4);
+    const slotDirections = new Map();
+
+    const voiceEntries = [];
+    let slot = 0;
+    while (slot < measureTargets.length) {
+      const target = measureTargets[slot];
+      const notes = targetNotes(target)
+        .filter((n) => n.staff === staff && n.voice === voiceId)
+        .sort((a, b) => a.midi - b.midi);
+      const rest = (target?.notationRests || [])
+        .find((r) => r.staff === staff && r.voice === voiceId);
+      const event = notes[0] || rest;
+      if (!event) {
+        slot += 1;
+        continue;
+      }
+      voiceEntries.push({ slot, notes, rest, event });
+      const durSlots = Math.max(
+        1,
+        Math.round((event.duration || (1 / slotsPerQuarter)) * slotsPerQuarter)
+      );
+      slot += durSlots;
+    }
+
+    let group = [];
+    const finishGroup = () => {
+      if (group.length > 1) {
+        const explicit = group.find((e) => e.event.stemDirection === "up" || e.event.stemDirection === "down");
+        let dir;
+        if (explicit) {
+          dir = explicit.event.stemDirection;
+        } else {
+          const positions = group
+            .flatMap((e) => e.notes)
+            .map((n) => diatonicPosition(n.step, n.octave))
+            .filter(Number.isFinite);
+          if (positions.length) {
+            const maxPos = Math.max(...positions);
+            const minPos = Math.min(...positions);
+            const distAbove = maxPos - middleLinePos;
+            const distBelow = middleLinePos - minPos;
+            if (distAbove > distBelow) {
+              dir = "down";
+            } else if (distBelow > distAbove) {
+              dir = "up";
+            } else {
+              const avgPos = positions.reduce((s, p) => s + p, 0) / positions.length;
+              dir = avgPos >= middleLinePos ? "down" : "up";
+            }
+          }
+        }
+        if (dir) {
+          group.forEach((e) => slotDirections.set(e.slot, dir));
+        }
+      }
+      group = [];
+    };
+
+    voiceEntries.forEach((entry) => {
+      const primary = (!entry.rest && (entry.event.beams || []).find((b) => b.number === "1")) || null;
+      if (!primary) {
+        finishGroup();
+        return;
+      }
+      if (primary.type === "begin") finishGroup();
+      group.push(entry);
+      if (primary.type === "end") finishGroup();
+    });
+    finishGroup();
+
+    return slotDirections;
+  }
+
   function makeStaffVoices(
     measure,
     staff,
@@ -365,6 +441,12 @@
     return [...voicesInMeasure].map((voiceId) => {
       const staveNotes = [];
       const notationCandidates = [];
+      const beamGroupStemDirs = computeBeamGroupStemDirections(
+        measureTargets,
+        staff,
+        voiceId,
+        slotsPerQuarter
+      );
       let slot = 0;
 
       const eventAtSlot = (targetSlot) => {
@@ -392,9 +474,10 @@
 
         const dots = event.dots || 0;
         const duration = `${vexDurationForType(event.type)}${"d".repeat(dots)}${rest ? "r" : ""}`;
-        const stemDirection = event.stemDirection === "down"
+        const resolvedStemDir = event.stemDirection || beamGroupStemDirs.get(slot) || "";
+        const stemDirection = resolvedStemDir === "down"
           ? VF.Stem.DOWN
-          : event.stemDirection === "up"
+          : resolvedStemDir === "up"
           ? VF.Stem.UP
           : null;
         const restKey = rest && hasMultipleVoices
@@ -409,8 +492,6 @@
           ...(stemDirection === null ? {} : { stemDirection }),
           strokePx: LEDGER_LINE_OVERHANG
         });
-        staveNote.reset();
-        staveNote.buildFlag();
 
         if (!rest) {
           notes.forEach((note, noteIndex) => {
@@ -449,6 +530,7 @@
         notationCandidates.push({
           staveNote,
           event,
+          resolvedStemDir,
           slot,
           voiceId,
           staff,
@@ -705,10 +787,10 @@
         });
         formatter.format(vexVoices, noteAreaWidth);
 
-        notationCandidates.forEach(({ staveNote, event, restLine }) => {
+        notationCandidates.forEach(({ staveNote, resolvedStemDir, restLine }) => {
           if (Number.isFinite(restLine)) staveNote.setKeyLine(0, restLine);
-          if (event.stemDirection === "up") staveNote.setStemDirection(VF.Stem.UP);
-          if (event.stemDirection === "down") staveNote.setStemDirection(VF.Stem.DOWN);
+          if (resolvedStemDir === "up") staveNote.setStemDirection(VF.Stem.UP);
+          if (resolvedStemDir === "down") staveNote.setStemDirection(VF.Stem.DOWN);
         });
 
         const beams = makeBeams(notationCandidates);
