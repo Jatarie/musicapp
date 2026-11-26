@@ -2055,7 +2055,7 @@
   function generateSightreadingScore(options = {}) {
     const levelNum = clamp(Number(options.level) || 1, 1, DIFFICULTY_LEVELS.length);
     const levelDef = DIFFICULTY_LEVELS[levelNum - 1];
-    const measureCount = [8, 16, 32].includes(Number(options.measureCount)) ? Number(options.measureCount) : 8;
+    const measureCount = [8, 16, 32].includes(Number(options.measureCount)) ? Number(options.measureCount) : 32;
     const sourceMode = ["mixed", "procedural", "repertoire"].includes(options.sourceMode) ? options.sourceMode : "mixed";
     const rng = createRng(options.seed);
 

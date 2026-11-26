@@ -118,7 +118,8 @@
 
   function defaultSettings() {
     return {
-      measureCount: 8,
+      settingsVersion: 2,
+      measureCount: 32,
       sourceMode: "mixed",
       keyId: "auto",
       handMode: "treble",
@@ -132,7 +133,13 @@
   function loadSettings() {
     try {
       const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-      return { ...defaultSettings(), ...(parsed || {}) };
+      const merged = { ...defaultSettings(), ...(parsed || {}) };
+      if (parsed && (parsed.settingsVersion || 1) < 2) {
+        merged.measureCount = 32;
+        merged.settingsVersion = 2;
+        saveSettings(merged);
+      }
+      return merged;
     } catch {
       return defaultSettings();
     }
@@ -973,7 +980,7 @@
   els.midiInputs.addEventListener("change", selectMidiInput);
 
   const onSettingChange = () => {
-    state.settings.measureCount = Number(els.optMeasures.value) || 8;
+    state.settings.measureCount = Number(els.optMeasures.value) || 32;
     state.settings.sourceMode = els.optSource.value;
     state.settings.keyId = els.optKey.value;
     state.settings.handMode = els.optHand.value;
